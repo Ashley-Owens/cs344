@@ -22,13 +22,15 @@ int main(int argc, char **argv) {
             exit(1);
     }
 
-    // File was valid, read it in
+    // File was opened properly, reading it in
     while (fgets(newline, sizeof(newline), filePtr)) {
+        
+        // Ignores first line with Category Descriptors
         if (count >= 1) {
 
             // Returns a pointer to the new, duplicated string
             char *temp = strdup(newline);
-            printf("Printing the newline: %s\n", temp);
+            printf("%s", temp);
         }
         count++;
     }
