@@ -8,7 +8,7 @@
 // argc is the number of inputs, char **argv are the string values 
 int main(int argc, char **argv) {
 
-    // Creates a struct for movies
+    // Creates movie struct
     struct movie {
         char title[500];
         int year;
@@ -82,10 +82,12 @@ int main(int argc, char **argv) {
     }
     // Testing struct values
     for (int i=0; i < count -1; i++) {
-        printf("%i: %s\n", i, movie_list[i].rating);
+        // Prints the rating to one decimal point
+        printf("%i: %.1f\n", i, movie_list[i].rating);
     }
     
     printf("Processed file %s and parsed data for %d movies \n", fileName, count -1);
+    
 	
 
 
