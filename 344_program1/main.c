@@ -124,6 +124,49 @@ void printMovieList(struct movie *list) {
     }
 }
 
+void userInteraction() {
+    int userNum;
+    int min = 1;
+    int max = 4;
+    bool flag = true;
+
+    while(flag) {
+        printf("1. Show movies released in the specified year\n");
+        printf("2. Show highest rated movie for each year\n");
+        printf("3. Show the title and year of release of all movies in a specific language\n");
+        printf("4. Exit from the program\n");
+        printf("Enter a choice from 1 to 4: ");
+        scanf("%d", &userNum);
+        
+        // Algorith from: https://bit.ly/3oEQHIK
+        // if ((userNum - min) * (userNum - max) <= 0) {
+        //     printf("You have selected option %d\n", userNum);
+        //     flag = false;
+        // } else {
+        //     printf("Invalid entry, please try again.\n");
+        // }
+        switch(userNum) {
+
+            case 1:
+                printf("You have selected option %d\n", userNum);
+                break;
+            case 2:
+                printf("You have selected option %d\n", userNum);
+                break; 
+            case 3:
+                printf("You have selected option %d\n", userNum);
+                break; 
+            case 4:
+                printf("You have selected option %d\n", userNum);
+                printf("Program exiting...\n");
+                flag = false;
+                break; 
+            default : 
+                printf("Invalid entry, please try again.\n");
+            }
+    }
+}
+
 /*
 *   Process the file provided as an argument to the program to
 *   create a linked list of movie structs and prints out the list.
@@ -141,6 +184,7 @@ int main(int argc, char **argv) {
     // Adds file input to struct and prints the struct
     struct movie *list = processFile(argv[1]);
     printMovieList(list);
+    userInteraction();
     return EXIT_SUCCESS;
     
     // printf("Give me a number please: ");
@@ -150,5 +194,4 @@ int main(int argc, char **argv) {
     // scanf("%s", file);
     // printf("Your name is: %s\n", name);
 
-    return 0;
 }
