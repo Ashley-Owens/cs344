@@ -125,6 +125,88 @@ void printMovieList(struct movie *list) {
 }
 
 /*
+* Returns the size of the current movie struct
+*/
+int getListLength(struct movie *list) {
+    int count = 0;
+    while (list != NULL) {
+        count++;
+        list = list->next;
+    }
+    return count;
+}
+
+/*
+* Checks to see if a value is present in an array
+* Returns 0 if False, 1 if True
+*/
+int findValueInArray(int val, int arr[], int length) {
+    int i;
+    for (i=0; i < length; i++) {
+        if (arr[i] == val) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/*
+*   Iterates through move struct. Prints year, rating, and
+*   movie titles for highest rated movies for each year.
+*/
+void getHighestRatedMovies(struct movie *list) {
+
+    // Initializes variables
+    float maxRating;
+    int currYear;
+    int buffer;
+    struct movie *temp;
+    int count = 0;
+    int listLength = getListLength(list);
+    int foundYears[listLength];
+
+    // Iterates through LL printing out highest ratings
+    while (list != NULL) {
+        currYear = list->year;
+        
+        // Checks to see if the current year's highest rating has already been found.
+        if (findValueInArray(currYear, foundYears, listLength) == 1) {
+            foundYears[count] = currYear;
+            list = list->next;
+            count++;
+            continue;
+
+        // Finds the current year's highest rating by searching the rest of the LL.
+        } else {
+            maxRating = list->rating;
+            buffer = strlen(list->title);
+            char currTitle[buffer];
+            strcpy(currTitle, list->title);
+            temp = list->next;
+
+            // Searches through the temp LL
+            while (temp != NULL) {
+                if (temp->year == currYear) {
+                    if (temp->rating > maxRating) {
+                        maxRating = temp->rating;
+                        buffer = strlen(temp->title);
+                        strcpy(currTitle, temp->title);
+                    }
+                }
+                temp = temp->next;
+            }
+
+            // Stores the found year in an array to avoid duplicate searching
+            foundYears[count] = currYear;
+            printf("%i, %.1f, %s\n", currYear, maxRating, currTitle);
+            count++;
+            list = list->next;
+        }
+    }
+}
+
+
+/*
 *   Iterates through move struct. Returns movie titles 
 *   matching requested year by printing to the console.
 */
@@ -180,7 +262,7 @@ void userInteraction(struct movie *list) {
                 break;
             case 2:
                 printf("You have selected option %d\n", userNum);
-                // getHighestRatedMovies(list);
+                getHighestRatedMovies(list);
                 break; 
             case 3:
                 printf("You have selected option %d\n", userNum);
@@ -210,7 +292,7 @@ int main(int argc, char **argv) {
 
     // Adds file input to struct and prints the struct
     struct movie *list = processFile(argv[1]);
-    printMovieList(list);
+    // printMovieList(list);
     userInteraction(list);
     return EXIT_SUCCESS;
 }
