@@ -124,14 +124,41 @@ void printMovieList(struct movie *list) {
     }
 }
 
-void userInteraction() {
+/*
+*   Iterates through move struct. Returns movie titles 
+*   matching requested year by printing to the console.
+*/
+void getYear(struct movie *list, int year) {
+    int count = 0;
+    
+    // Iterates through linked list comparing year values
+    while (list != NULL) {
+        if (list->year == year) {
+            printf("%s\n", list->title);
+            count++;
+        }
+        list = list->next;
+    }
+    if (count == 0) {
+        printf("No data about movies released in the year %i\n", year);
+    }
+}
+
+/*
+*   Interactive element of the program. Gets user input and returns
+*   requested information from movie data by printing to the console.
+*/
+void userInteraction(struct movie *list) {
+    // Initializes variables
     int userNum;
+    int year;
     int min = 1;
     int max = 4;
     bool flag = true;
 
+    // Main loop for user interaction
     while(flag) {
-        printf("1. Show movies released in the specified year\n");
+        printf("\n1. Show movies released in the specified year\n");
         printf("2. Show highest rated movie for each year\n");
         printf("3. Show the title and year of release of all movies in a specific language\n");
         printf("4. Exit from the program\n");
@@ -139,19 +166,21 @@ void userInteraction() {
         scanf("%d", &userNum);
         
         // Algorith from: https://bit.ly/3oEQHIK
-        // if ((userNum - min) * (userNum - max) <= 0) {
-        //     printf("You have selected option %d\n", userNum);
-        //     flag = false;
-        // } else {
-        //     printf("Invalid entry, please try again.\n");
-        // }
-        switch(userNum) {
+        if ((userNum - min) * (userNum - max) > 0) {
+            printf("Invalid entry, please try again.\n");
+            continue;
+        }
 
+        // Cases for handling user input
+        switch(userNum) {
             case 1:
-                printf("You have selected option %d\n", userNum);
+                printf("Enter the year for which you want to see movies: ");
+                scanf("%d", &year);
+                getYear(list, year);
                 break;
             case 2:
                 printf("You have selected option %d\n", userNum);
+                // getHighestRatedMovies(list);
                 break; 
             case 3:
                 printf("You have selected option %d\n", userNum);
@@ -161,9 +190,7 @@ void userInteraction() {
                 printf("Program exiting...\n");
                 flag = false;
                 break; 
-            default : 
-                printf("Invalid entry, please try again.\n");
-            }
+        }
     }
 }
 
@@ -184,14 +211,6 @@ int main(int argc, char **argv) {
     // Adds file input to struct and prints the struct
     struct movie *list = processFile(argv[1]);
     printMovieList(list);
-    userInteraction();
+    userInteraction(list);
     return EXIT_SUCCESS;
-    
-    // printf("Give me a number please: ");
-    // scanf("%d", &y);
-    // printf("You chose the value: %d\n", y);
-    // printf("%s\n", file);
-    // scanf("%s", file);
-    // printf("Your name is: %s\n", name);
-
 }
