@@ -69,7 +69,6 @@ struct movie *processFile(char *filePath) {
     char *currLine = NULL;
     size_t len = 0;
     ssize_t nread;
-    char *token;
     int count = 0;
 
     // The head of the linked list
@@ -265,7 +264,7 @@ void userInteraction(struct movie *list) {
     int year;
     int min = 1;
     int max = 4;
-    char lang[1000];
+    char lang[25];
     bool flag = true;
 
     // Main loop for user interaction
@@ -296,7 +295,7 @@ void userInteraction(struct movie *list) {
                 break; 
             case 3:
                 printf("Enter the language for which you want to see movies: ");
-                scanf("%s", &lang);
+                scanf("%s", lang);
                 getMoviesByLanguage(list, lang);
                 break; 
             case 4:
