@@ -1,9 +1,13 @@
+// Name: Ashley Owens
+// Date: 10/7/2021
+// Assignment 1: Movies 
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdbool.h>
+#include <ctype.h> 
 
 /* Creates movie struct */
 struct movie {
@@ -35,13 +39,11 @@ struct movie *createMovie(char *currLine) {
 
     // The next token is the string of languages
     token = strtok_r(NULL, ",", &saveptr);
-    // memmove(&token[0], &token[1], strlen(token));
     currMovie->languages = calloc(strlen(token) + 1, sizeof(char));
     strcpy(currMovie->languages, token);
 
     // The last token is the rating, stored as a float
     token = strtok_r(NULL, "\n", &saveptr);
-    // printf("token is %f", token);
     currMovie->rating = atof(token);
 
     // Set the next node to NULL in the newly created movie entry
@@ -58,6 +60,11 @@ struct movie *createMovie(char *currLine) {
 struct movie *processFile(char *filePath) {
     // Open the specified file for reading only
     FILE *movieFile = fopen(filePath, "r");
+    if (movieFile == NULL) {
+        printf("Invalid filename entry, please try again.\n");
+        printf("Example usage: ./movies movie_list.csv\n");
+        return 0;
+    }
 
     char *currLine = NULL;
     size_t len = 0;
@@ -125,7 +132,7 @@ void printMovieList(struct movie *list) {
 }
 
 /*
-* Returns the size of the current movie struct
+* Returns the length of the current movie struct
 */
 int getListLength(struct movie *list) {
     int count = 0;
@@ -134,6 +141,29 @@ int getListLength(struct movie *list) {
         list = list->next;
     }
     return count;
+}
+
+/*
+*   Iterates through move struct. Prints year and title
+*   for every movie matching user inputted language.
+*/
+void getMoviesByLanguage(struct movie *list, char* lang) {
+    // Finds the matching language for each movie
+    bool flag = true;
+
+    while (list != NULL) {
+        char *isValid = strstr(list->languages, lang);
+
+        // Match found: print it
+        if (isValid != NULL) {
+            printf("%i %s\n", list->year, list->title);
+            flag = false;
+        }
+        list = list->next;
+    }
+    if (flag) {
+        printf("No data about movies released in %s\n", lang);
+    }
 }
 
 /*
@@ -205,23 +235,22 @@ void getHighestRatedMovies(struct movie *list) {
     }
 }
 
-
 /*
 *   Iterates through move struct. Returns movie titles 
 *   matching requested year by printing to the console.
 */
 void getYear(struct movie *list, int year) {
-    int count = 0;
+    bool flag = true;
     
     // Iterates through linked list comparing year values
     while (list != NULL) {
         if (list->year == year) {
             printf("%s\n", list->title);
-            count++;
+            flag = false;
         }
         list = list->next;
     }
-    if (count == 0) {
+    if (flag) {
         printf("No data about movies released in the year %i\n", year);
     }
 }
@@ -236,6 +265,7 @@ void userInteraction(struct movie *list) {
     int year;
     int min = 1;
     int max = 4;
+    char lang[1000];
     bool flag = true;
 
     // Main loop for user interaction
@@ -261,14 +291,15 @@ void userInteraction(struct movie *list) {
                 getYear(list, year);
                 break;
             case 2:
-                printf("You have selected option %d\n", userNum);
+                printf("These are the highest rated movies by year:\n");
                 getHighestRatedMovies(list);
                 break; 
             case 3:
-                printf("You have selected option %d\n", userNum);
+                printf("Enter the language for which you want to see movies: ");
+                scanf("%s", &lang);
+                getMoviesByLanguage(list, lang);
                 break; 
             case 4:
-                printf("You have selected option %d\n", userNum);
                 printf("Program exiting...\n");
                 flag = false;
                 break; 
@@ -292,7 +323,12 @@ int main(int argc, char **argv) {
 
     // Adds file input to struct and prints the struct
     struct movie *list = processFile(argv[1]);
-    // printMovieList(list);
+    
+    // Ensures correct filename entry
+    if (list == 0) {
+        return EXIT_FAILURE;
+    }
+
     userInteraction(list);
     return EXIT_SUCCESS;
 }
