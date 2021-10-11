@@ -6,7 +6,24 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <ctype.h> 
+#include <ctype.h>
+#include <sys/types.h>
+#include <dirent.h>
+
+
+int locateFile() {
+    // Open the current directory
+    DIR* currDir = opendir(".");
+    struct dirent *aDir;
+
+    // Go through all the entries
+    while((aDir = readdir(currDir)) != NULL) {
+        printf("%s  %lu\n", aDir->d_name, aDir->d_ino);    
+    }
+    // Close the directory
+    closedir(currDir);
+        return 0;
+}
 
 
 /*
@@ -20,12 +37,12 @@ void subMenu() {
     char filename[100];
     bool flag = true;
 
-    // Main loop for user interaction
+    // Sub menu loop for user interaction
     while(flag) {
-        printf("\n***** Which file you want to process? *****\n");
-        printf("Enter 1 to pick the largest file\n");
-        printf("Enter 2 to pick the smallest file\n");
-        printf("Enter 3 to specify the name of a file\n");
+        printf("\n***** Which file do you want to process? *****\n");
+        printf("Enter 1 to pick the largest file.\n");
+        printf("Enter 2 to pick the smallest file.\n");
+        printf("Enter 3 to specify the name of a file.\n");
         printf("Enter a choice from 1 to 3: ");
         scanf("%d", &userNum);
         
@@ -38,6 +55,7 @@ void subMenu() {
             switch(userNum) {
                 case 1:
                     printf("Now processing the largest file named ...\n");
+                    locateFile();
                     flag = false;
                     break;
                 case 2:
