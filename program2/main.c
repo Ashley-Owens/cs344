@@ -9,20 +9,60 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
 
+#define PREFIX "movies_"
 
-int locateFile() {
+/*
+* Print the name of the file in the current directory that is either
+* the largest or the smallest in the directory. If requesting largest,
+* fileSize = 1, if requesting smallest, fileSize = 0. Code modified
+* from module 3 Exploration on Directories: https://bit.ly/3mNYmC7
+*/
+int locateFile(int fileSize) {
     // Open the current directory
     DIR* currDir = opendir(".");
     struct dirent *aDir;
+    struct stat dirStat;
+    off_t maxSize = 0;
+    off_t minSize = 1000000;
+    int i = 0;
+    char maxEntryName[256];
+    char minEntryName[256];
 
-    // Go through all the entries
-    while((aDir = readdir(currDir)) != NULL) {
-        printf("%s  %lu\n", aDir->d_name, aDir->d_ino);    
+
+    // Go through all the files in the directory
+    while((aDir = readdir(currDir)) != NULL){
+
+        if(strncmp(PREFIX, aDir->d_name, strlen(PREFIX)) == 0){
+            // Get meta-data for the current entry
+            stat(aDir->d_name, &dirStat);  
+            
+            // Uses the st_size function to compare the file size to the current max/min sizes
+            // and the S_ISREG function to check that it is a normal file 
+            if (dirStat.st_size > maxSize && S_ISREG(dirStat.st_mode)) {
+                maxSize = dirStat.st_size;
+                memset(maxEntryName, '\0', sizeof(maxEntryName));
+                strcpy(maxEntryName, aDir->d_name);
+            }
+            else if (dirStat.st_size < minSize && S_ISREG(dirStat.st_mode)) {
+                minSize = dirStat.st_size;
+                memset(minEntryName, '\0', sizeof(minEntryName));
+                strcpy(minEntryName, aDir->d_name);
+            }
+            i++;
+        }
     }
-    // Close the directory
+    // Close the directory and prints file info
     closedir(currDir);
-        return 0;
+    if (fileSize) {
+        printf("Now processing the largest file named: %s\n", maxEntryName);
+    } else {
+        printf("Now processing the smallest file named %s\n", minEntryName);
+    }
+    return 0;
 }
 
 
@@ -55,11 +95,12 @@ void subMenu() {
             switch(userNum) {
                 case 1:
                     printf("Now processing the largest file named ...\n");
-                    locateFile();
+                    locateFile(1);
                     flag = false;
                     break;
                 case 2:
                     printf("Now processing the smallest file named ...\n");
+                    locateFile(0);
                     flag = false;
                     break;
                 case 3:
