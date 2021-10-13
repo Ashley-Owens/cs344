@@ -12,7 +12,6 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-
 #define PREFIX "movies_"
 
 /*
@@ -21,7 +20,7 @@
 * fileSize = 1, if requesting smallest, fileSize = 0. Code modified
 * from module 3 Exploration on Directories: https://bit.ly/3mNYmC7
 */
-int locateFile(int fileSize) {
+char locateMinMaxFiles(int fileSize) {
     // Open the current directory
     DIR* currDir = opendir(".");
     struct dirent *aDir;
@@ -29,40 +28,82 @@ int locateFile(int fileSize) {
     off_t maxSize = 0;
     off_t minSize = 1000000;
     int i = 0;
-    char maxEntryName[256];
+    char *maxEntryName;
     char minEntryName[256];
-
+    const char* fileExt = ".csv";
+    // char* filename;
 
     // Go through all the files in the directory
     while((aDir = readdir(currDir)) != NULL){
 
         if(strncmp(PREFIX, aDir->d_name, strlen(PREFIX)) == 0){
             // Get meta-data for the current entry
-            stat(aDir->d_name, &dirStat);  
+            stat(aDir->d_name, &dirStat);
+            // Confirm current file is a .csv
+            char *isValid = strstr(aDir->d_name, fileExt);
             
-            // Uses the st_size function to compare the file size to the current max/min sizes
-            // and the S_ISREG function to check that it is a normal file 
-            if (dirStat.st_size > maxSize && S_ISREG(dirStat.st_mode)) {
-                maxSize = dirStat.st_size;
-                memset(maxEntryName, '\0', sizeof(maxEntryName));
-                strcpy(maxEntryName, aDir->d_name);
+            // File is a .csv: perform min/max comparisons and update variables
+            if (isValid != NULL) {
+                printf("isValid: %s\n", isValid);
+                // Uses the st_size function to compare the file size to the current max/min sizes
+                // and the S_ISREG function to check that it is a normal file 
+                if (dirStat.st_size > maxSize) {
+                    maxSize = dirStat.st_size;
+                    maxEntryName = calloc(strlen(aDir->d_name) + 1, sizeof(char));
+                    strcpy(maxEntryName, aDir->d_name);
+                }
+                if (dirStat.st_size < minSize) {
+                    minSize = dirStat.st_size;
+                    memset(minEntryName, '\0', sizeof(minEntryName));
+                    strcpy(minEntryName, aDir->d_name);
+                }
             }
-            else if (dirStat.st_size < minSize && S_ISREG(dirStat.st_mode)) {
-                minSize = dirStat.st_size;
-                memset(minEntryName, '\0', sizeof(minEntryName));
-                strcpy(minEntryName, aDir->d_name);
-            }
-            i++;
         }
+        i++;
     }
-    // Close the directory and prints file info
+    // Close the directory and print file info
     closedir(currDir);
     if (fileSize) {
         printf("Now processing the largest file named: %s\n", maxEntryName);
+        // filename = calloc(strlen(maxEntryName) + 1, sizeof(char));
+        // strcpy(filename, maxEntryName);
+        // free(maxEntryName);
+        return *maxEntryName;
     } else {
         printf("Now processing the smallest file named %s\n", minEntryName);
+        // return minEntryName;
     }
-    return 0;
+}
+
+/*
+* Opens the current directory and searches for the inputted filename.
+* Returns 0 if file not found, returns 1 if file found. Code modified
+* from module 3 Exploration on Directories: https://bit.ly/3mNYmC7
+*/
+int locateInputFile(char* filename) {
+
+    // Open the current directory
+    DIR* currDir = opendir(".");
+    struct dirent *aDir;
+    bool flag = false;
+
+    // Go through all the entries
+    while((aDir = readdir(currDir)) != NULL){
+
+        // If inputted file is found
+        if (!strcmp(aDir->d_name, filename)) {
+            flag = true;
+        }
+    }
+    // Close the directory
+    closedir(currDir);
+
+    // If file not found, return 0
+    if (!flag) {
+        printf("Error, %s not found\n", filename);
+        return 0;
+    }
+    return 1;
 }
 
 
@@ -76,6 +117,8 @@ void subMenu() {
     int max = 3;
     char filename[100];
     bool flag = true;
+    char maxFile;
+    // char* minFile[100];
 
     // Sub menu loop for user interaction
     while(flag) {
@@ -83,7 +126,7 @@ void subMenu() {
         printf("Enter 1 to pick the largest file.\n");
         printf("Enter 2 to pick the smallest file.\n");
         printf("Enter 3 to specify the name of a file.\n");
-        printf("Enter a choice from 1 to 3: ");
+        printf("\nEnter a choice from 1 to 3: ");
         scanf("%d", &userNum);
         
         // Algorith from: https://bit.ly/3oEQHIK
@@ -94,20 +137,25 @@ void subMenu() {
             // Cases for handling user input
             switch(userNum) {
                 case 1:
-                    printf("Now processing the largest file named ...\n");
-                    locateFile(1);
+                    maxFile = locateMinMaxFiles(1);
+                    printf("maxfile is: %s\n", maxFile);
+                    // processFile(filename);
                     flag = false;
                     break;
                 case 2:
-                    printf("Now processing the smallest file named ...\n");
-                    locateFile(0);
+                    locateMinMaxFiles(0);
                     flag = false;
                     break;
                 case 3:
                     printf("Enter the complete file name: ");
                     scanf("%s", filename);
-                    printf("You have entered %s", filename);
-                    flag = false;
+                    printf("You have entered %s\n", filename);
+                    int ret = locateInputFile(filename);
+                    if (ret == 1) {
+                        printf("Now processing the chosen file named: %s\n", filename);
+                        // processFile(filename);
+                        flag = false;
+                    }
                     break;
             }
         } 
