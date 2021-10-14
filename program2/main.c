@@ -113,7 +113,8 @@ struct movie *processFile(char *filePath) {
 }
 
 int makeDir() {
-    srand(time(NULL));
+    // Generates a random num between 0 and 99999
+    // Code modified from: https://bit.ly/3v7StTY
     int r = rand() % 100000;
     printf("random num is: %i\n", r);
     const char *pathname = "owensas.movies.";
