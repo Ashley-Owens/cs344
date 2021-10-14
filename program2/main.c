@@ -112,15 +112,23 @@ struct movie *processFile(char *filePath) {
     return head;
 }
 
-int makeDir() {
+char* makeDir() {
     // Generates a random num between 0 and 99999
     // Code modified from: https://bit.ly/3v7StTY
+    char random[6];
+    char *name = "owensas.movies.";
+    char *pathname = malloc(strlen(name) + strlen(random) + 1);
     int r = rand() % 100000;
-    printf("random num is: %i\n", r);
-    const char *pathname = "owensas.movies.";
     mode_t mode = 0750;
-    int outcome = mkdir(pathname, mode);
-    return outcome;
+
+    // Converts num to string and concatenates to file pathname
+    sprintf(random, "%d", r);
+    strcpy(pathname, name);
+    strcat(pathname, random);
+    
+    // Returns the new directory name
+    mkdir(pathname, mode);
+    return pathname;
 }
 
 /*
@@ -241,9 +249,8 @@ void subMenu() {
     int max = 3;
     bool flag = true;
     char tempFile[100];
-    char* maxFile;
-    char* minFile;
     char* filepointer;
+    char* dirName;
     struct movie *list;
 
     // Sub menu loop for user interaction
@@ -263,20 +270,21 @@ void subMenu() {
             // Cases for handling user input
             switch(userNum) {
                 case 1:
-                    maxFile = locateMinMaxFiles(1);
-                    printf("Now processing the largest file named: %s\n", maxFile);
-                    list = processFile(maxFile);
-                    printMovieList(list);
-                    free(maxFile);
-                    makeDir();
+                    filepointer = locateMinMaxFiles(1);
+                    printf("Now processing the largest file named: %s\n", filepointer);
+                    list = processFile(filepointer);
+                    free(filepointer);
+                    dirName = makeDir();
+                    printf("DirectoryName is: %s\n", dirName);
                     flag = false;
                     break;
                 case 2:
-                    minFile = locateMinMaxFiles(0);
-                    printf("Now processing the smallest file named %s\n", minFile);
-                    list = processFile(minFile);
-                    printMovieList(list);
-                    free(minFile);
+                    filepointer = locateMinMaxFiles(0);
+                    printf("Now processing the smallest file named %s\n", filepointer);
+                    list = processFile(filepointer);
+                    free(filepointer);
+                    dirName = makeDir();
+                    printf("DirectoryName is: %s\n", dirName);
                     flag = false;
                     break;
                 case 3:
@@ -288,8 +296,9 @@ void subMenu() {
                     if (ret == 1) {
                         printf("Now processing: %s\n", filepointer);
                         list = processFile(filepointer);
-                        printMovieList(list);
                         free(filepointer);
+                        dirName = makeDir();
+                        printf("DirectoryName is: %s\n", dirName);
                         flag = false;
                     } else {
                         printf("Error, %s not found. Please try again.\n", filepointer);
