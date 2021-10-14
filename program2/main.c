@@ -15,7 +15,7 @@
 #define PREFIX "movies_"
 
 /*
-* Print the name of the file in the current directory that is either
+* Returns the name of the file in the current directory that is either
 * the largest or the smallest in the directory. If requesting largest,
 * fileSize = 1, if requesting smallest, fileSize = 0. Code modified
 * from module 3 Exploration on Directories: https://bit.ly/3mNYmC7
@@ -61,7 +61,7 @@ char* locateMinMaxFiles(int fileSize) {
         }
         i++;
     }
-    // Close the directory and print file info
+    // Close the directory and return file name
     closedir(currDir);
     if (fileSize) {
         return maxEntryName;
@@ -95,7 +95,6 @@ int locateInputFile(char* filename) {
 
     // If file not found, return 0
     if (!flag) {
-        printf("Error, %s not found\n", filename);
         return 0;
     }
     return 1;
@@ -148,12 +147,13 @@ void subMenu() {
                 case 3:
                     printf("Enter the complete file name: ");
                     scanf("%s", filename);
-                    printf("You have entered %s\n", filename);
                     int ret = locateInputFile(filename);
                     if (ret == 1) {
-                        printf("Now processing the chosen file named: %s\n", filename);
+                        printf("Now processing: %s\n", filename);
                         // processFile(filename);
                         flag = false;
+                    } else {
+                        printf("Error, %s not found. Please try again.\n", filename);
                     }
                     break;
             }
@@ -171,7 +171,6 @@ void mainMenu() {
     int userNum;
     int min = 1;
     int max = 2;
-    char lang[25];
     bool flag = true;
 
     // Main loop for user interaction
