@@ -81,7 +81,6 @@ struct movie *processFile(char *filePath) {
     // The tail of the linked list
     struct movie *tail = NULL;
     
-
     // Read the file line by line
     while ((nread = getline(&currLine, &len, movieFile)) != -1)
     {
@@ -116,10 +115,10 @@ struct movie *processFile(char *filePath) {
 /*
 * Returns the name of the file in the current directory that is either
 * the largest or the smallest in the directory. If requesting largest,
-* fileSize = 1, if requesting smallest, fileSize = 0. Code modified
+* fileRequest = 1, if requesting smallest, fileRequest = 0. Code modified
 * from module 3 Exploration on Directories: https://bit.ly/3mNYmC7
 */
-char* locateMinMaxFiles(int fileSize) {
+char* locateMinMaxFiles(int fileRequest) {
     // Open the current directory
     DIR* currDir = opendir(".");
     struct dirent *aDir;
@@ -162,7 +161,7 @@ char* locateMinMaxFiles(int fileSize) {
     }
     // Close the directory and return file name
     closedir(currDir);
-    if (fileSize) {
+    if (fileRequest) {
         return maxEntryName;
     } else {
         return minEntryName;
@@ -234,6 +233,7 @@ void subMenu() {
     char* maxFile;
     char* minFile;
     char* filepointer;
+    struct movie *list;
 
     // Sub menu loop for user interaction
     while(flag) {
@@ -254,16 +254,16 @@ void subMenu() {
                 case 1:
                     maxFile = locateMinMaxFiles(1);
                     printf("Now processing the largest file named: %s\n", maxFile);
-                    struct movie *maxList = processFile(maxFile);
-                    printMovieList(maxList);
+                    list = processFile(maxFile);
+                    printMovieList(list);
                     free(maxFile);
                     flag = false;
                     break;
                 case 2:
                     minFile = locateMinMaxFiles(0);
                     printf("Now processing the smallest file named %s\n", minFile);
-                    struct movie *minList = processFile(minFile);
-                    printMovieList(minList);
+                    list = processFile(minFile);
+                    printMovieList(list);
                     free(minFile);
                     flag = false;
                     break;
@@ -275,8 +275,8 @@ void subMenu() {
                     int ret = locateInputFile(filepointer);
                     if (ret == 1) {
                         printf("Now processing: %s\n", filepointer);
-                        struct movie *chosenList = processFile(filepointer);
-                        printMovieList(chosenList);
+                        list = processFile(filepointer);
+                        printMovieList(list);
                         free(filepointer);
                         flag = false;
                     } else {
@@ -287,7 +287,6 @@ void subMenu() {
         } 
     }
 }
-
 
 /*
 *   Interactive element of the program. Gets user input and returns
