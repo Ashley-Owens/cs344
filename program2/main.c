@@ -14,6 +14,105 @@
 #include <unistd.h>
 #define PREFIX "movies_"
 
+/* Creates movie struct */
+struct movie {
+    char *title;
+    int year;
+    char *languages;
+    float rating;
+    struct movie *next;
+};
+
+/* Parse the current line which is comma delimited and
+* create a movie struct with the data. Code adapted from:
+* https://replit.com/@cs344/studentsc#main.c
+*/
+struct movie *createMovie(char *currLine) {
+    struct movie *currMovie = malloc(sizeof(struct movie));
+
+    // For use with strtok_r
+    char *saveptr;
+
+    // The first token is the movie title
+    char *token = strtok_r(currLine, ",", &saveptr);
+    currMovie->title = calloc(strlen(token) + 1, sizeof(char));
+    strcpy(currMovie->title, token);
+
+    // The next token is the year, stored as an integer
+    token = strtok_r(NULL, ",", &saveptr);
+    currMovie->year = atoi(token);
+
+    // The next token is the string of languages
+    token = strtok_r(NULL, ",", &saveptr);
+    currMovie->languages = calloc(strlen(token) + 1, sizeof(char));
+    strcpy(currMovie->languages, token);
+
+    // The last token is the rating, stored as a float
+    token = strtok_r(NULL, "\n", &saveptr);
+    currMovie->rating = atof(token);
+
+    // Set the next node to NULL in the newly created movie entry
+    currMovie->next = NULL;
+
+    return currMovie;
+}
+
+/*
+* Returns a linked list of movies by parsing data from
+* each line of the specified file. Code adapted from:
+* https://replit.com/@cs344/studentsc#main.c
+*/
+struct movie *processFile(char *filePath) {
+    // Open the specified file for reading only
+    FILE *movieFile = fopen(filePath, "r");
+    if (movieFile == NULL) {
+        printf("Invalid filename entry, please try again.\n");
+        printf("Example usage: ./movies movie_list.csv\n");
+        return 0;
+    }
+
+    char *currLine = NULL;
+    size_t len = 0;
+    ssize_t nread;
+    int count = 0;
+
+    // The head of the linked list
+    struct movie *head = NULL;
+    // The tail of the linked list
+    struct movie *tail = NULL;
+    
+
+    // Read the file line by line
+    while ((nread = getline(&currLine, &len, movieFile)) != -1)
+    {
+        // Ignores first line with Category Descriptors
+        if(count == 0) {
+            count++;
+            continue;
+        }
+        // Get a new movie node corresponding to the current line
+        struct movie *newNode = createMovie(currLine);
+
+        // This is the first node in the linked link
+        // Sets the head and the tail to this node
+        if (head == NULL) {
+            head = newNode;
+            tail = newNode;
+        }
+        // This is not the first node.
+        // Add this node to the list and advance the tail
+        else {
+            tail->next = newNode;
+            tail = newNode;
+        }
+        count++;
+    }
+    free(currLine);
+    fclose(movieFile);
+    printf("Processed file %s and parsed data for %d movies \n", filePath, count -1);
+    return head;
+}
+
 /*
 * Returns the name of the file in the current directory that is either
 * the largest or the smallest in the directory. If requesting largest,
@@ -100,6 +199,27 @@ int locateInputFile(char* filename) {
     return 1;
 }
 
+/*
+* Print data for the given movie. Code adapted from:
+* https://replit.com/@cs344/studentsc#main.c
+*/
+void printMovie(struct movie* aMovie){
+  printf("%s, %i, %s, %.1f\n", aMovie->title,
+               aMovie->year,
+               aMovie->languages,
+               aMovie->rating);
+}
+
+/*
+* Print the linked list of movies. Code adapted from:
+* https://replit.com/@cs344/studentsc#main.c
+*/
+void printMovieList(struct movie *list) {
+    while (list != NULL) {
+        printMovie(list);
+        list = list->next;
+    }
+}
 
 /*
 *   Interactive element of the program. Gets user input and returns
@@ -109,10 +229,11 @@ void subMenu() {
     int userNum;
     int min = 1;
     int max = 3;
-    char filename[100];
     bool flag = true;
+    char tempFile[100];
     char* maxFile;
     char* minFile;
+    char* filepointer;
 
     // Sub menu loop for user interaction
     while(flag) {
@@ -133,27 +254,33 @@ void subMenu() {
                 case 1:
                     maxFile = locateMinMaxFiles(1);
                     printf("Now processing the largest file named: %s\n", maxFile);
-                    // processFile(filename);
-                    // free(maxFile)
+                    struct movie *maxList = processFile(maxFile);
+                    printMovieList(maxList);
+                    free(maxFile);
                     flag = false;
                     break;
                 case 2:
                     minFile = locateMinMaxFiles(0);
                     printf("Now processing the smallest file named %s\n", minFile);
-                    // processFile(filename);
-                    // free(maxFile)
+                    struct movie *minList = processFile(minFile);
+                    printMovieList(minList);
+                    free(minFile);
                     flag = false;
                     break;
                 case 3:
                     printf("Enter the complete file name: ");
-                    scanf("%s", filename);
-                    int ret = locateInputFile(filename);
+                    scanf("%s", tempFile);
+                    filepointer = calloc(strlen(tempFile) + 1, sizeof(char));
+                    strcpy(filepointer, tempFile);
+                    int ret = locateInputFile(filepointer);
                     if (ret == 1) {
-                        printf("Now processing: %s\n", filename);
-                        // processFile(filename);
+                        printf("Now processing: %s\n", filepointer);
+                        struct movie *chosenList = processFile(filepointer);
+                        printMovieList(chosenList);
+                        free(filepointer);
                         flag = false;
                     } else {
-                        printf("Error, %s not found. Please try again.\n", filename);
+                        printf("Error, %s not found. Please try again.\n", filepointer);
                     }
                     break;
             }
