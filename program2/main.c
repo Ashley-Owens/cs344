@@ -112,6 +112,16 @@ struct movie *processFile(char *filePath) {
     return head;
 }
 
+int makeDir() {
+    srand(time(NULL));
+    int r = rand() % 100000;
+    printf("random num is: %i\n", r);
+    const char *pathname = "owensas.movies.";
+    mode_t mode = 0750;
+    int outcome = mkdir(pathname, mode);
+    return outcome;
+}
+
 /*
 * Returns the name of the file in the current directory that is either
 * the largest or the smallest in the directory. If requesting largest,
@@ -257,6 +267,7 @@ void subMenu() {
                     list = processFile(maxFile);
                     printMovieList(list);
                     free(maxFile);
+                    makeDir();
                     flag = false;
                     break;
                 case 2:
