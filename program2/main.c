@@ -1,6 +1,6 @@
 // Name: Ashley Owens
-// Date: 10/18/2021
-// Assignment 2: Files and Directories
+// Date: 10/15/2021
+// Program 2: Files and Directories
 
 #include <stdio.h>
 #include <string.h>
@@ -111,10 +111,14 @@ struct movie *processFile(char *filePath) {
     }
     free(currLine);
     fclose(movieFile);
-    printf("Processed file %s and parsed data for %d movies \n", filePath, count -1);
     return head;
 }
 
+/*
+* Returns the name of the newly created directory that follows the
+* naming convention of owensas.movies.<random number>. Code modified
+* from module 3 Exploration on Directories: https://bit.ly/3mNYmC7
+*/
 char* makeDir() {
     // Generates a random num between 0 and 99999
     // Code modified from: https://bit.ly/3v7StTY
@@ -177,10 +181,10 @@ int makeFiles(char *dirName, struct movie *list) {
         // Appends the movie title to the file and closes it.
         write(fileDescriptor, movieTitle, strlen(movieTitle));
         close(fileDescriptor);
+        free(yearPathName);
+        free(movieTitle);
         list = list->next;
     }
-    free(yearPathName);
-    free(movieTitle);
     return 0;
 }
 
@@ -271,28 +275,6 @@ int locateInputFile(char *dirName, char* filename) {
 }
 
 /*
-* Print data for the given movie. Code adapted from:
-* https://replit.com/@cs344/studentsc#main.c
-*/
-void printMovie(struct movie* aMovie){
-  printf("%s, %s, %s, %.1f\n", aMovie->title,
-               aMovie->year,
-               aMovie->languages,
-               aMovie->rating);
-}
-
-/*
-* Print the linked list of movies. Code adapted from:
-* https://replit.com/@cs344/studentsc#main.c
-*/
-void printMovieList(struct movie *list) {
-    while (list != NULL) {
-        printMovie(list);
-        list = list->next;
-    }
-}
-
-/*
 *   Interactive element of the program. Gets user input and finds the 
 *   largest, smallest, or user inputted .csv file containing a list of 
 *   movie metadata. Creates a new directory and populates it with .txt 
@@ -326,37 +308,40 @@ void subMenu() {
             // Cases for handling user input
             switch(userNum) {
                 case 1:
+                    // Finds and processes largest file
                     filepointer = locateMinMaxFiles(1);
                     printf("Now processing the largest file named: %s\n", filepointer);
                     list = processFile(filepointer);
                     free(filepointer);
                     dirName = makeDir();
-                    printf("DirectoryName is: %s\n", dirName);
+                    printf("Created directory with name: %s\n", dirName);
                     makeFiles(dirName, list);
                     flag = false;
                     break;
                 case 2:
+                    // Finds and processes smallest file
                     filepointer = locateMinMaxFiles(0);
                     printf("Now processing the smallest file named %s\n", filepointer);
                     list = processFile(filepointer);
                     free(filepointer);
                     dirName = makeDir();
-                    printf("DirectoryName is: %s\n", dirName);
+                    printf("Created directory with name: %s\n", dirName);
                     makeFiles(dirName, list);
                     flag = false;
                     break;
                 case 3:
+                    // Finds user entered filename and processes it
                     printf("Enter the complete file name: ");
                     scanf("%s", tempFile);
                     filepointer = calloc(strlen(tempFile) + 1, sizeof(char));
                     strcpy(filepointer, tempFile);
                     int ret = locateInputFile(currDir, filepointer);
                     if (ret == 1) {
-                        printf("Now processing: %s\n", filepointer);
+                        printf("Now processing the file named: %s\n", filepointer);
                         list = processFile(filepointer);
                         free(filepointer);
                         dirName = makeDir();
-                        printf("DirectoryName is: %s\n", dirName);
+                        printf("Created directory with name: %s\n", dirName);
                         makeFiles(dirName, list);
                         flag = false;
                     } else {
