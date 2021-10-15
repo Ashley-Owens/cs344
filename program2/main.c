@@ -8,10 +8,12 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <time.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <limits.h>
 #define PREFIX "movies_"
 
 /* Creates movie struct */
@@ -116,10 +118,11 @@ struct movie *processFile(char *filePath) {
 char* makeDir() {
     // Generates a random num between 0 and 99999
     // Code modified from: https://bit.ly/3v7StTY
+    srand(time(0));
+    int r = rand() % 100000;
     char random[6];
     char *name = "owensas.movies.";
     char *pathname = malloc(strlen(name) + strlen(random) + 1);
-    int r = rand() % 100000;
     mode_t mode = 0750;
 
     // Converts num to string and concatenates to file pathname
@@ -132,69 +135,52 @@ char* makeDir() {
     return pathname;
 }
 
+/*
+* Iterates through the movie struct list, creating files in the chosen
+* directory named by the year the movie was made and containing the movie
+* titles matching that year. Code modified from Exploration: Files
+* in module 3: https://bit.ly/3DHOz7q
+*/
 int makeFiles(char *dirName, struct movie *list) {
-    DIR* currDir = opendir(dirName);
-    char *currYear;
+
+    char *separator = "/";
     char *fileExt = ".txt";
+    char *newLine = "\n";
     char *yearPathName;
-    // int listLength = getListLength(list);
-    // char foundYears[listLength];
-    struct movie *tempList;
+    char *movieTitle;
+    mode_t mode = 0640;
+    int fileDescriptor;
 
+    // Iterates through the linked list movie struct
     while (list != NULL) {
-        currYear = list->year;
-        yearPathName = malloc(strlen(list->year) + strlen(fileExt) + 1);
-        strcpy(yearPathName, list->year);
+
+        // Concatenates file directory + new filename
+        yearPathName = malloc(strlen(dirName) + strlen(separator) + strlen(list->year) + strlen(fileExt) + 1);
+        strcpy(yearPathName, dirName);
+        strcat(yearPathName, separator);
+        strcat(yearPathName, list->year);
         strcat(yearPathName, fileExt);
-        printf("movie year file: %s\n", yearPathName);
 
-        // Checks to see if the current year file has already been created.
-        if (locateInputFile(dirName, yearPathName) == 0) {
-            // Create new file
-            // Add current year info to file
-            printf("Creating new file: %s\n", yearPathName);
-            printf("Appending movie title: %s\n", list->title);
-            tempList = list->next;
-
-            // Search for additional years to add to file
-            while (tempList != NULL) {
-                int isEqual = strcmp(currYear, tempList->year);
-                if (isEqual == 0) {
-                    printf("Appending movie title: %s\n", tempList->title);
-                }
-                tempList = tempList->next;
-            }
-        }
+        // Adds a newline to the movie title
+        movieTitle = malloc(strlen(list->title) + strlen(newLine) + 1);
+        strcpy(movieTitle, list->title);
+        strcat(movieTitle, newLine);
+        
+        // Creates a file if it doesn't exist or opens existing file
+        fileDescriptor = open(yearPathName, O_RDWR | O_CREAT | O_APPEND, mode);
+        if (fileDescriptor == -1){
+            printf("open() failed on \"%s\"\n", yearPathName);
+            perror("Error");
+            exit(1);
+	    }
+        
+        // Appends the movie title to the file and closes it.
+        write(fileDescriptor, movieTitle, strlen(movieTitle));
+        close(fileDescriptor);
         list = list->next;
     }
     free(yearPathName);
-    closedir(currDir);
-    return 0;
-}
-
-/*
-* Returns the length of the current movie struct
-*/
-int getListLength(struct movie *list) {
-    int count = 0;
-    while (list != NULL) {
-        count++;
-        list = list->next;
-    }
-    return count;
-}
-
-/*
-* Checks to see if a value is present in an array
-* Returns 0 if False, 1 if True
-*/
-int findValueInArray(int val, int arr[], int length) {
-    int i;
-    for (i=0; i < length; i++) {
-        if (arr[i] == val) {
-            return 1;
-        }
-    }
+    free(movieTitle);
     return 0;
 }
 
@@ -210,7 +196,7 @@ char* locateMinMaxFiles(int fileRequest) {
     struct dirent *aDir;
     struct stat dirStat;
     off_t maxSize = 0;
-    off_t minSize = 1000000;
+    off_t minSize = LONG_MAX;
     int i = 0;
     char *maxEntryName;
     char *minEntryName;
@@ -307,8 +293,10 @@ void printMovieList(struct movie *list) {
 }
 
 /*
-*   Interactive element of the program. Gets user input and returns
-*   requested information from movie data by ......  fill me in ........
+*   Interactive element of the program. Gets user input and finds the 
+*   largest, smallest, or user inputted .csv file containing a list of 
+*   movie metadata. Creates a new directory and populates it with .txt 
+*   files filtered by year.
 */
 void subMenu() {
     int userNum;
@@ -354,6 +342,7 @@ void subMenu() {
                     free(filepointer);
                     dirName = makeDir();
                     printf("DirectoryName is: %s\n", dirName);
+                    makeFiles(dirName, list);
                     flag = false;
                     break;
                 case 3:
@@ -368,6 +357,7 @@ void subMenu() {
                         free(filepointer);
                         dirName = makeDir();
                         printf("DirectoryName is: %s\n", dirName);
+                        makeFiles(dirName, list);
                         flag = false;
                     } else {
                         printf("Error, %s not found. Please try again.\n", filepointer);
@@ -379,8 +369,8 @@ void subMenu() {
 }
 
 /*
-*   Interactive element of the program. Gets user input and returns
-*   requested information from movie data by ......  fill me in ........
+*   Main Menu: first interactive element of the program. Gets user input 
+*   and redirects to sub menu or allows user to exit the program. 
 */
 void mainMenu() {
     // Initializes variables
@@ -401,6 +391,7 @@ void mainMenu() {
         if ((userNum - min) * (userNum - max) > 0) {
             printf("Invalid entry, please try again.\n");
             continue;
+
         } else {
             // Cases for handling user input
             switch(userNum) {
