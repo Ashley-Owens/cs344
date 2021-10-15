@@ -17,7 +17,7 @@
 /* Creates movie struct */
 struct movie {
     char *title;
-    int year;
+    char *year;
     char *languages;
     float rating;
     struct movie *next;
@@ -40,7 +40,8 @@ struct movie *createMovie(char *currLine) {
 
     // The next token is the year, stored as an integer
     token = strtok_r(NULL, ",", &saveptr);
-    currMovie->year = atoi(token);
+    currMovie->year = calloc(strlen(token) + 1, sizeof(char));
+    strcpy(currMovie->year, token);
 
     // The next token is the string of languages
     token = strtok_r(NULL, ",", &saveptr);
@@ -131,6 +132,72 @@ char* makeDir() {
     return pathname;
 }
 
+int makeFiles(char *dirName, struct movie *list) {
+    DIR* currDir = opendir(dirName);
+    char *currYear;
+    char *fileExt = ".txt";
+    char *yearPathName;
+    // int listLength = getListLength(list);
+    // char foundYears[listLength];
+    struct movie *tempList;
+
+    while (list != NULL) {
+        currYear = list->year;
+        yearPathName = malloc(strlen(list->year) + strlen(fileExt) + 1);
+        strcpy(yearPathName, list->year);
+        strcat(yearPathName, fileExt);
+        printf("movie year file: %s\n", yearPathName);
+
+        // Checks to see if the current year file has already been created.
+        if (locateInputFile(dirName, yearPathName) == 0) {
+            // Create new file
+            // Add current year info to file
+            printf("Creating new file: %s\n", yearPathName);
+            printf("Appending movie title: %s\n", list->title);
+            tempList = list->next;
+
+            // Search for additional years to add to file
+            while (tempList != NULL) {
+                int isEqual = strcmp(currYear, tempList->year);
+                if (isEqual == 0) {
+                    printf("Appending movie title: %s\n", tempList->title);
+                }
+                tempList = tempList->next;
+            }
+        }
+        list = list->next;
+    }
+    free(yearPathName);
+    closedir(currDir);
+    return 0;
+}
+
+/*
+* Returns the length of the current movie struct
+*/
+int getListLength(struct movie *list) {
+    int count = 0;
+    while (list != NULL) {
+        count++;
+        list = list->next;
+    }
+    return count;
+}
+
+/*
+* Checks to see if a value is present in an array
+* Returns 0 if False, 1 if True
+*/
+int findValueInArray(int val, int arr[], int length) {
+    int i;
+    for (i=0; i < length; i++) {
+        if (arr[i] == val) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /*
 * Returns the name of the file in the current directory that is either
 * the largest or the smallest in the directory. If requesting largest,
@@ -188,14 +255,14 @@ char* locateMinMaxFiles(int fileRequest) {
 }
 
 /*
-* Opens the current directory and searches for the inputted filename.
+* Opens the inputted directory and searches for the requested filename.
 * Returns 0 if file not found, returns 1 if file found. Code modified
 * from module 3 Exploration on Directories: https://bit.ly/3mNYmC7
 */
-int locateInputFile(char* filename) {
+int locateInputFile(char *dirName, char* filename) {
 
     // Open the current directory
-    DIR* currDir = opendir(".");
+    DIR* currDir = opendir(dirName);
     struct dirent *aDir;
     bool flag = false;
 
@@ -222,7 +289,7 @@ int locateInputFile(char* filename) {
 * https://replit.com/@cs344/studentsc#main.c
 */
 void printMovie(struct movie* aMovie){
-  printf("%s, %i, %s, %.1f\n", aMovie->title,
+  printf("%s, %s, %s, %.1f\n", aMovie->title,
                aMovie->year,
                aMovie->languages,
                aMovie->rating);
@@ -251,7 +318,8 @@ void subMenu() {
     char tempFile[100];
     char* filepointer;
     char* dirName;
-    struct movie *list;
+    char* currDir = ".";
+    struct movie* list;
 
     // Sub menu loop for user interaction
     while(flag) {
@@ -276,6 +344,7 @@ void subMenu() {
                     free(filepointer);
                     dirName = makeDir();
                     printf("DirectoryName is: %s\n", dirName);
+                    makeFiles(dirName, list);
                     flag = false;
                     break;
                 case 2:
@@ -292,7 +361,7 @@ void subMenu() {
                     scanf("%s", tempFile);
                     filepointer = calloc(strlen(tempFile) + 1, sizeof(char));
                     strcpy(filepointer, tempFile);
-                    int ret = locateInputFile(filepointer);
+                    int ret = locateInputFile(currDir, filepointer);
                     if (ret == 1) {
                         printf("Now processing: %s\n", filepointer);
                         list = processFile(filepointer);
