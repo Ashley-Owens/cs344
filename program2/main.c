@@ -204,7 +204,9 @@ char* locateMinMaxFiles(int fileRequest) {
     int i = 0;
     char *maxEntryName;
     char *minEntryName;
+    char *notFound = "0";
     const char* fileExt = ".csv";
+    bool flag = false;
 
     // Go through all the files in the directory
     while((aDir = readdir(currDir)) != NULL){
@@ -218,7 +220,7 @@ char* locateMinMaxFiles(int fileRequest) {
             
             // File is a .csv: perform min/max comparisons and update variables
             if (isValid != NULL) {
-
+                flag = true;
                 // Uses the st_size function to compare the file size to the current max/min sizes
                 // and the S_ISREG function to check that it is a normal file 
                 if (dirStat.st_size > maxSize) {
@@ -235,12 +237,17 @@ char* locateMinMaxFiles(int fileRequest) {
         }
         i++;
     }
-    // Close the directory and return file name
+    // Close the directory and return file name or not found
     closedir(currDir);
-    if (fileRequest) {
-        return maxEntryName;
+    if (flag) {
+        if (fileRequest) {
+           return maxEntryName;
+        } 
+        else {
+            return minEntryName;
+        }
     } else {
-        return minEntryName;
+        return notFound;
     }
 }
 
@@ -286,6 +293,7 @@ void subMenu() {
     int max = 3;
     bool flag = true;
     char tempFile[100];
+    char* notFound = "0";
     char* filepointer;
     char* dirName;
     char* currDir = ".";
@@ -300,7 +308,7 @@ void subMenu() {
         printf("\nEnter a choice from 1 to 3: ");
         scanf("%d", &userNum);
         
-        // Algorith from: https://bit.ly/3oEQHIK
+        // Error handling algorith from: https://bit.ly/3oEQHIK
         if ((userNum - min) * (userNum - max) > 0) {
             printf("Invalid entry, please try again.\n");
             continue;
@@ -310,24 +318,36 @@ void subMenu() {
                 case 1:
                     // Finds and processes largest file
                     filepointer = locateMinMaxFiles(1);
-                    printf("Now processing the largest file named: %s\n", filepointer);
-                    list = processFile(filepointer);
-                    free(filepointer);
-                    dirName = makeDir();
-                    printf("Created directory with name: %s\n", dirName);
-                    makeFiles(dirName, list);
-                    flag = false;
+                    if (strcmp(notFound, filepointer) != 0) {
+                        printf("Now processing the largest file named: %s\n", filepointer);
+                        list = processFile(filepointer);
+                        free(filepointer);
+                        dirName = makeDir();
+                        printf("Created directory with name: %s\n", dirName);
+                        makeFiles(dirName, list);
+                        flag = false;
+
+                    // Error handling 
+                    } else {
+                        printf("Error, file not found. Please try again.\n");
+                    }
                     break;
                 case 2:
                     // Finds and processes smallest file
                     filepointer = locateMinMaxFiles(0);
-                    printf("Now processing the smallest file named %s\n", filepointer);
-                    list = processFile(filepointer);
-                    free(filepointer);
-                    dirName = makeDir();
-                    printf("Created directory with name: %s\n", dirName);
-                    makeFiles(dirName, list);
-                    flag = false;
+                    if (strcmp(notFound, filepointer) != 0) {
+                        printf("Now processing the smallest file named %s\n", filepointer);
+                        list = processFile(filepointer);
+                        free(filepointer);
+                        dirName = makeDir();
+                        printf("Created directory with name: %s\n", dirName);
+                        makeFiles(dirName, list);
+                        flag = false;
+
+                    // Error handling
+                    } else {
+                        printf("Error, file not found. Please try again.\n");
+                    }
                     break;
                 case 3:
                     // Finds user entered filename and processes it
@@ -344,6 +364,8 @@ void subMenu() {
                         printf("Created directory with name: %s\n", dirName);
                         makeFiles(dirName, list);
                         flag = false;
+
+                    // Error handling
                     } else {
                         printf("Error, %s not found. Please try again.\n", filepointer);
                     }
@@ -372,7 +394,7 @@ void mainMenu() {
         printf("Enter a choice from 1 or 2: ");
         scanf("%d", &userNum);
         
-        // Algorith from: https://bit.ly/3oEQHIK
+        // Error handling algorith from: https://bit.ly/3oEQHIK
         if ((userNum - min) * (userNum - max) > 0) {
             printf("Invalid entry, please try again.\n");
             continue;
