@@ -59,11 +59,11 @@ int getCommandInput(char** input, int* numOfArgs) {
     char buffer[MAX_ARGS];
 
     // Prompts and adds user input into buffer array
-    printf(": ");
-    fgets(buffer, MAX_LENGTH, stdin);
-
-    // Removes the newline char
-    strtok(buffer, "\n");
+    do {
+        printf(": ");
+        fgets(buffer, MAX_LENGTH, stdin);               // Stores input into buffer array
+        strtok(buffer, "\n");                           // Removes the newline char
+    } while (buffer[0] == '\n' || buffer[0] == '#');    // Ignores empty lines and code comments
 
     // Parses first argument into input array
     char* token = strtok(buffer, " ");
