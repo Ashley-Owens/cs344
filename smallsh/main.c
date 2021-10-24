@@ -44,7 +44,6 @@ int main() {
     fflush(stdin);
     getCommandInput(input, &numOfArgs);
     printf("num of args: %d\n", numOfArgs);
-    printf("input is: %s\n", *input);
     for (int i=0; i < numOfArgs; i++) {
         printf("input is: %s\n", input[i]);
     }
@@ -53,16 +52,20 @@ int main() {
     return EXIT_SUCCESS;
 }
 
-
+/*
+*   getCommandInput
+*   Performs command line prompt, ignoring newlines and
+*   code comments. Adds user input into input array and
+*   caculates number of input arguments.
+*/
 int getCommandInput(char** input, int* numOfArgs) {
-    // initialize variables to help parse input
     char buffer[MAX_ARGS];
 
-    // Prompts and adds user input into buffer array
+    // Command line prompt
     do {
         printf(": ");
         fgets(buffer, MAX_LENGTH, stdin);               // Stores input into buffer array
-        strtok(buffer, "\n");                           // Removes the newline char
+        strtok(buffer, "\n");                           // The newline char ends token scan
     } while (buffer[0] == '\n' || buffer[0] == '#');    // Ignores empty lines and code comments
 
     // Parses first argument into input array
@@ -71,10 +74,8 @@ int getCommandInput(char** input, int* numOfArgs) {
     // Continues parsing each argument and adding to array
     while (token != NULL) {
         input[*numOfArgs] = strdup(token);
-        printf("token is:  %s\n", token);
         token = strtok(NULL, " ");	
         ++*numOfArgs;
-        printf("numOfArgs is: %d\n", *numOfArgs);
     }
     return 0;
 }
