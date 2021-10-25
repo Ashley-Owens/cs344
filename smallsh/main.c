@@ -22,15 +22,17 @@
 #define MAX_ARGS 512
 
 /* 
-*  Constant variable declarations
+*  Global variable declarations
 */
 int runInBackground;
+
 
 /* 
 *  Function declarations
 */
 int getCommandInput(char** input, int* numOfArgs);
 int parseCommandInput(char** input, int numOfArgs);
+
 
 
 /*
@@ -50,12 +52,6 @@ int main() {
         fflush(stdout);
         fflush(stdin);
         getCommandInput(input, &numOfArgs);
-        printf("num of args: %d\n", numOfArgs);
-        printf("run in background is: %i\n", runInBackground);
-        for (int i=0; i < numOfArgs; i++) {
-            printf("input is: %s\n", input[i]);
-        }
-        
         runShell = parseCommandInput(input, numOfArgs);
 
     }
@@ -95,7 +91,7 @@ int getCommandInput(char** input, int* numOfArgs) {
     // Parses buffer arguments into input array
     char* token = strtok(buffer, " ");
     while (token != NULL) {
-        input[*numOfArgs] = token;                      // Sets the token to the correct index in the input array 
+        input[*numOfArgs] = token;                      // Sets the token to the next index in the input array 
         token = strtok(NULL, " ");	                    // Obtains the next token
         ++*numOfArgs;
     }
@@ -118,22 +114,27 @@ int getCommandInput(char** input, int* numOfArgs) {
 */
 int parseCommandInput(char** input, int numOfArgs) {
 
-    printf("last item is %s\n", input[numOfArgs-1]);
-    fflush(stdout);
-    printf("first item is %s\n", input[0]);
-    fflush(stdout);
-
-
-    
+    // Exits the shell
     if (strcmp(input[0], "exit") == 0) {
-        printf("exit is true, killing jobs...\n");
+        printf("exiting, killing jobs...\n");
         fflush(stdout);
         return 0;
     }
 
+    // Changes the current working directory
     else if (strcmp(input[0], "cd") == 0) {
-        printf("cd is true, changing working directory...\n");
-        fflush(stdout);
+        if (input[1]) {
+            chdir(input[1]);
+        } else {
+            chdir(getenv("HOME"));
+        }
+        // For testing purposes: https://bit.ly/3vKjzAX
+        char* buffer = getcwd(NULL, 0);
+        if (buffer) {
+            printf("Current working directory: %s\n", buffer);
+            free(buffer);
+            fflush(stdout);
+        }
     }
 
     else if (strcmp(input[0], "status") == 0) {
@@ -147,4 +148,29 @@ int parseCommandInput(char** input, int numOfArgs) {
     }
 
     return 1;
+}
+
+// Can't get this to work@
+// void runCD(char** input) {
+//     int errorFlag = chdir(input[1]);
+//     printf("requested path is: %s\n", (input)[1]);
+
+//     if (errorFlag == -1) {
+//         printf("cd: no such file or directory: %s\n", input[1]);
+//         fflush(stdout);
+//     } else if (!input[1]) {
+//         chdir(getenv("HOME"));
+//     }
+
+//     // For testing purposes: https://bit.ly/3vKjzAX
+//     char* buffer = getcwd(NULL, 0);
+//     if (buffer) {
+//         printf("Current working directory: %s\n", buffer);
+//         free(buffer);
+//         fflush(stdout);
+//     }
+// }
+
+void printStatus() {
+
 }
