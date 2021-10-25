@@ -24,7 +24,7 @@
 /* 
 *  Constant variable declarations
 */
-
+int runInBackground;
 
 /* 
 *  Function declarations
@@ -40,28 +40,33 @@ int main() {
     // Initializes variables for handling user input
     char* input[MAX_ARGS];
     int numOfArgs;
+    bool runShell = true;
     // char inputFilename[256];
     // char outputFilename[256];
-
-    numOfArgs = 0;
-    memset(input, '\0', MAX_ARGS);
-    fflush(stdout);
-    fflush(stdin);
-    getCommandInput(input, &numOfArgs);
-    // printf("num of args: %d\n", numOfArgs);
-    // for (int i=0; i < numOfArgs; i++) {
-    //     printf("input is: %s\n", input[i]);
-    // }
     
-    parseCommandInput(input, numOfArgs);
+    while (runShell) {
+        numOfArgs = 0;
+        memset(input, '\0', MAX_ARGS);
+        fflush(stdout);
+        fflush(stdin);
+        getCommandInput(input, &numOfArgs);
+        printf("num of args: %d\n", numOfArgs);
+        printf("run in background is: %i\n", runInBackground);
+        for (int i=0; i < numOfArgs; i++) {
+            printf("input is: %s\n", input[i]);
+        }
+        
+        runShell = parseCommandInput(input, numOfArgs);
+
+    }
     return EXIT_SUCCESS;
 }
 
 /*
 *   getCommandInput()
-*   Performs command line prompt, ignoring newlines and
-*   code comments. Adds user input into input array, converts
-*   $$ into PID, and caculates number of input arguments.
+*   Performs command line prompt, ignores newlines and code comments.
+*   Appends stdin to input array, converts $$ into PID, sets the
+*   background flag, and caculates number of input arguments.
 */
 int getCommandInput(char** input, int* numOfArgs) {
     char buffer[MAX_LENGTH];
@@ -90,35 +95,40 @@ int getCommandInput(char** input, int* numOfArgs) {
     // Parses buffer arguments into input array
     char* token = strtok(buffer, " ");
     while (token != NULL) {
-        input[*numOfArgs] = token;
-        token = strtok(NULL, " ");	
+        input[*numOfArgs] = token;                      // Sets the token to the correct index in the input array 
+        token = strtok(NULL, " ");	                    // Obtains the next token
         ++*numOfArgs;
     }
+
+    // Checks for a run in the background request and sets the flag
+    if (strcmp(input[*numOfArgs-1], "&") == 0) {    
+        --*numOfArgs;
+        input[*numOfArgs] = "\0";                       // Removes '&' from the input array
+        runInBackground = 1;
+    }
+
     return 0;
 }
 
 /*
 *   parseCommandInput()
 *   Iterates through user input, parses meaning and calls
-*   helper functions to perform requested actions. 
+*   helper functions to perform requested actions. Returns
+*   0 for "exit" input or 1 to continue the running program.
 */
 int parseCommandInput(char** input, int numOfArgs) {
-    bool runInBackground = false;
 
     printf("last item is %s\n", input[numOfArgs-1]);
     fflush(stdout);
     printf("first item is %s\n", input[0]);
     fflush(stdout);
 
-    if (strcmp(input[numOfArgs -1], "&") == 0) {
-        runInBackground = true;
-        printf("run in background is %i\n", runInBackground);
-        fflush(stdout);
-    }
+
     
     if (strcmp(input[0], "exit") == 0) {
         printf("exit is true, killing jobs...\n");
         fflush(stdout);
+        return 0;
     }
 
     else if (strcmp(input[0], "cd") == 0) {
@@ -136,5 +146,5 @@ int parseCommandInput(char** input, int numOfArgs) {
         fflush(stdout);
     }
 
-    return 0;
+    return 1;
 }
