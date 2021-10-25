@@ -47,33 +47,44 @@ int main() {
     for (int i=0; i < numOfArgs; i++) {
         printf("input is: %s\n", input[i]);
     }
-    printf("command input received\n");
     
     return EXIT_SUCCESS;
 }
 
 /*
-*   getCommandInput
+*   getCommandInput()
 *   Performs command line prompt, ignoring newlines and
-*   code comments. Adds user input into input array and
-*   caculates number of input arguments.
+*   code comments. Adds user input into input array, converts
+*   $$ into PID, and caculates number of input arguments.
 */
 int getCommandInput(char** input, int* numOfArgs) {
-    char buffer[MAX_ARGS];
+    char buffer[MAX_LENGTH];
 
     // Command line prompt
     do {
         printf(": ");
+        fflush(stdout);
         fgets(buffer, MAX_LENGTH, stdin);               // Stores input into buffer array
         strtok(buffer, "\n");                           // The newline char ends token scan
     } while (buffer[0] == '\n' || buffer[0] == '#');    // Ignores empty lines and code comments
 
-    // Parses first argument into input array
+
+    // Puts PIDs in Buffer string
+    for (int i = 1; i < strlen(buffer); i++) {
+		// Checks for double dollar signs in the string
+		if ((buffer[i - 1] == '$') && (buffer[i] == '$')) {
+			char* temp = strdup(buffer);                // Creates a temp copy of buffer string
+			temp[i-1] = '%';                            // Replaces $$ with %d for string insertion
+			temp[i] = 'd';
+			sprintf(buffer, temp, getpid());            // Prints the PID number into the string position
+			free(temp);
+		}
+	}
+
+    // Parses buffer arguments into input array
     char* token = strtok(buffer, " ");
-    
-    // Continues parsing each argument and adding to array
     while (token != NULL) {
-        input[*numOfArgs] = strdup(token);
+        input[*numOfArgs] = token;
         token = strtok(NULL, " ");	
         ++*numOfArgs;
     }
