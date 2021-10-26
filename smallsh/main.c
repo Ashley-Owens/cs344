@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 /* 
-*  Constant declarations: define shell input sizes
+*  Constant declarations: shell input size
 */
 #define MAX_LENGTH 2048
 #define MAX_ARGS 512
@@ -25,35 +25,34 @@
 *  Global variable declarations
 */
 int runInBackground;
+char* input[MAX_ARGS];
 
 
 /* 
 *  Function declarations
 */
-int getCommandInput(char** input, int* numOfArgs);
-int parseCommandInput(char** input, int numOfArgs);
+int getCommandInput(int* numOfArgs);
+int parseCommandInput(int numOfArgs);
+void changeDirectory();
 
 
 
 /*
-*   Main Function: *****
+*   Main Function: Runs program loop for retrieving
+*   shell input from user, parsing the input, and 
+*   performing the requested actions.
 */
 int main() {
-    // Initializes variables for handling user input
-    char* input[MAX_ARGS];
     int numOfArgs;
-    bool runShell = true;
-    // char inputFilename[256];
-    // char outputFilename[256];
+    bool runShellProgram = true;
     
-    while (runShell) {
-        numOfArgs = 0;
-        memset(input, '\0', MAX_ARGS);
+    while (runShellProgram) {
         fflush(stdout);
         fflush(stdin);
-        getCommandInput(input, &numOfArgs);
-        runShell = parseCommandInput(input, numOfArgs);
-
+        numOfArgs = 0;                                   // Reinitializes input array and arg count variables
+        memset(input, '\0', MAX_LENGTH);
+        getCommandInput(&numOfArgs);
+        runShellProgram = parseCommandInput(numOfArgs);
     }
     return EXIT_SUCCESS;
 }
@@ -61,10 +60,10 @@ int main() {
 /*
 *   getCommandInput()
 *   Performs command line prompt, ignores newlines and code comments.
-*   Appends stdin to input array, converts $$ into PID, sets the
-*   background flag, and caculates number of input arguments.
+*   Appends stdin to global input array, converts $$ into PID, sets the
+*   global background flag, and caculates number of input arguments.
 */
-int getCommandInput(char** input, int* numOfArgs) {
+int getCommandInput(int* numOfArgs) {
     char buffer[MAX_LENGTH];
 
     // Command line prompt
@@ -108,11 +107,11 @@ int getCommandInput(char** input, int* numOfArgs) {
 
 /*
 *   parseCommandInput()
-*   Iterates through user input, parses meaning and calls
+*   Iterates through user input, parses commands and calls
 *   helper functions to perform requested actions. Returns
-*   0 for "exit" input or 1 to continue the running program.
+*   0 to "exit" or 1 to continue running the program.
 */
-int parseCommandInput(char** input, int numOfArgs) {
+int parseCommandInput(int numOfArgs) {
 
     // Exits the shell
     if (strcmp(input[0], "exit") == 0) {
@@ -123,20 +122,10 @@ int parseCommandInput(char** input, int numOfArgs) {
 
     // Changes the current working directory
     else if (strcmp(input[0], "cd") == 0) {
-        if (input[1]) {
-            chdir(input[1]);
-        } else {
-            chdir(getenv("HOME"));
-        }
-        // For testing purposes: https://bit.ly/3vKjzAX
-        char* buffer = getcwd(NULL, 0);
-        if (buffer) {
-            printf("Current working directory: %s\n", buffer);
-            free(buffer);
-            fflush(stdout);
-        }
+        changeDirectory();
     }
 
+    // Figure out status...
     else if (strcmp(input[0], "status") == 0) {
         printf("status is true, printing out terminating signal...\n");
         fflush(stdout);
@@ -150,26 +139,34 @@ int parseCommandInput(char** input, int numOfArgs) {
     return 1;
 }
 
-// Can't get this to work@
-// void runCD(char** input) {
-//     int errorFlag = chdir(input[1]);
-//     printf("requested path is: %s\n", (input)[1]);
+/*
+*   changeDirectory()
+*   Changes directories: accesses global input array to determine 
+*   if user has entered a directory to perform requested action. 
+*   No directory input automatically navigates to HOME directory.
+*/
+void changeDirectory() {
+    int err;
 
-//     if (errorFlag == -1) {
-//         printf("cd: no such file or directory: %s\n", input[1]);
-//         fflush(stdout);
-//     } else if (!input[1]) {
-//         chdir(getenv("HOME"));
-//     }
+    if (input[1]) {
+        err = chdir(input[1]);
+    } else {
+        err = chdir(getenv("HOME"));
+    }
 
-//     // For testing purposes: https://bit.ly/3vKjzAX
-//     char* buffer = getcwd(NULL, 0);
-//     if (buffer) {
-//         printf("Current working directory: %s\n", buffer);
-//         free(buffer);
-//         fflush(stdout);
-//     }
-// }
+    if (err == -1) {
+        printf("cd: no such file or directory\n");
+        fflush(stdout);
+    }
+
+    // For testing purposes: https://bit.ly/3vKjzAX
+    char* buffer = getcwd(NULL, 0);
+    if (buffer) {
+        printf("Current working directory: %s\n", buffer);
+        free(buffer);
+        fflush(stdout);
+    }
+}
 
 void printStatus() {
 
