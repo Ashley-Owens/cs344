@@ -2,8 +2,8 @@
 // Date: 11/01/2021
 // Program 3: Smallsh
 
-#include <errno.h>
-#include <fcntl.h>
+// #include <errno.h>
+// #include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -22,6 +22,12 @@
 #define MAX_ARGS 512
 
 /* 
+*  Struct declarations: signal handlers
+*/
+// struct sigaction
+
+
+/* 
 *  Global variable declarations
 */
 int runInBackground;
@@ -34,6 +40,7 @@ char* input[MAX_ARGS];
 int getCommandInput(int* numOfArgs);
 int parseCommandInput(int numOfArgs);
 void changeDirectory();
+void executeCommands();
 
 
 
@@ -49,7 +56,7 @@ int main() {
     while (runShellProgram) {
         fflush(stdout);
         fflush(stdin);
-        numOfArgs = 0;                                   // Reinitializes input array and arg count variables
+        numOfArgs = 0;                                          // Reinitializes input array and arg count variables
         memset(input, '\0', MAX_LENGTH);
         getCommandInput(&numOfArgs);
         runShellProgram = parseCommandInput(numOfArgs);
@@ -87,7 +94,7 @@ int getCommandInput(int* numOfArgs) {
 		}
 	}
 
-    // Parses buffer arguments into input array
+    // Parses buffer arguments into input char array
     char* token = strtok(buffer, " ");
     while (token != NULL) {
         input[*numOfArgs] = token;                      // Sets the token to the next index in the input array 
@@ -113,7 +120,7 @@ int getCommandInput(int* numOfArgs) {
 */
 int parseCommandInput(int numOfArgs) {
 
-    // Exits the shell
+    // Exits the shell: need to figure out how to kill jobs
     if (strcmp(input[0], "exit") == 0) {
         printf("exiting, killing jobs...\n");
         fflush(stdout);
@@ -132,7 +139,7 @@ int parseCommandInput(int numOfArgs) {
     }
 
     else {
-        printf("executing other commands...\n");
+        executeCommands();
         fflush(stdout);
     }
 
@@ -170,4 +177,44 @@ void changeDirectory() {
 
 void printStatus() {
 
+}
+
+void executeCommands() {
+    
+    
+    // Code modified from Exploration: Creating & terminating processes
+    // https://bit.ly/2XOmwDV
+    pid_t spawnpid = -5;                                            // Sets spawnpid to placeholder value
+    int   childExitStatus;
+    int   childPID;
+
+    spawnpid = fork();                                              // Creates a child fork from the smallsh process
+    switch (spawnpid){
+        // Parent executes this code when child fork fails
+        case -1:
+            perror("fork() failed!");
+            exit(1);
+            break;
+
+        // Fork succeeded: child executes this code
+        case 0:
+            printf("I am the child. My pid  = %d\n", getpid());
+            execvp(input[0], input);                                 // execvp returns only on error
+            perror("execv");
+            break;
+
+        // Parent executes this code
+        default:
+            // printf("PARENT: making child a zombie for 10 seconds");
+            // fflush(stdout);
+            // sleep(10);
+            // spawnpid = waitpid(spawnpid, &childExitStatus, 0);
+            // spawnpid is the pid of the child
+            printf("I am the parent. My pid  = %d\n", getpid());
+            childPID = wait(&childExitStatus);
+            printf("Parent's waiting is done as the child with pid %d exited\n", childPID);
+            break;
+        }
+
+    // both parent and child execute code here
 }
