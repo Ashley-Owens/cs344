@@ -3,7 +3,7 @@
 // Program 3: Smallsh
 
 // #include <errno.h>
-// #include <fcntl.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -28,10 +28,11 @@
 
 
 /* 
-*  Global variable declarations
+*  Global variable declarations: I tried to pass these around to my
+*  helper functions but couldn't figure out how to stop pointer decay
 */
-int runInBackground;
-char* input[MAX_ARGS];
+int runInBackground;                                            // Flag for background process
+char* input[MAX_ARGS];                                          // Command prompt input
 
 
 /* 
@@ -40,7 +41,8 @@ char* input[MAX_ARGS];
 int getCommandInput(int* numOfArgs);
 int parseCommandInput(int numOfArgs);
 void changeDirectory();
-void executeCommands();
+void createChildProcess(int numOfArgs);
+void executeChildProcess(int numOfArgs);
 
 
 
@@ -105,7 +107,7 @@ int getCommandInput(int* numOfArgs) {
     // Checks for a run in the background request and sets the flag
     if (strcmp(input[*numOfArgs-1], "&") == 0) {    
         --*numOfArgs;
-        input[*numOfArgs] = "\0";                       // Removes '&' from the input array
+        input[*numOfArgs] = "\0";                       // Replaces '&' with null pointer for later child processes
         runInBackground = 1;
     }
 
@@ -139,7 +141,7 @@ int parseCommandInput(int numOfArgs) {
     }
 
     else {
-        executeCommands();
+        createChildProcess(numOfArgs);
         fflush(stdout);
     }
 
@@ -179,7 +181,7 @@ void printStatus() {
 
 }
 
-void executeCommands() {
+void createChildProcess(int numOfArgs) {
     
     
     // Code modified from Exploration: Creating & terminating processes
@@ -198,10 +200,8 @@ void executeCommands() {
 
         // Fork succeeded: child executes this code
         case 0:
-            printf("I am the child. My pid  = %d\n", getpid());
-            execvp(input[0], input);                                 // execvp returns only on error
-            perror("execv");
-            break;
+            // printf("I am the child. My pid  = %d\n", getpid());
+            executeChildProcess(numOfArgs);
 
         // Parent executes this code
         default:
@@ -210,11 +210,59 @@ void executeCommands() {
             // sleep(10);
             // spawnpid = waitpid(spawnpid, &childExitStatus, 0);
             // spawnpid is the pid of the child
-            printf("I am the parent. My pid  = %d\n", getpid());
+            // printf("I am the parent. My pid  = %d\n", getpid());
             childPID = wait(&childExitStatus);
             printf("Parent's waiting is done as the child with pid %d exited\n", childPID);
             break;
         }
 
     // both parent and child execute code here
+}
+
+void executeChildProcess(int numOfArgs) {
+    int     i = 0;
+    int     inputFD;
+    int     outputFD;
+    int     result;
+
+    // Iterate through the input
+    while (input[i] != NULL) {
+
+        if (strcmp(input[i], "<") == 0) {
+            printf("filename is: %s\n", input[i+1]);
+            inputFD = open(input[i+1], O_RDONLY);
+            printf("inputFD is %i\n", inputFD);
+            fflush(stdout);
+
+            // Catches error if unable to open given filename
+            if (inputFD < 0) {
+                perror("Error");
+                exit(1);
+            }
+            
+            // Use dup2 to point inputFD
+            // result = dup2(inputFD, 0);
+            // if (result < 0) {
+            //     perror("dup2"); 
+            //     exit(1); 
+            // }
+            printf("we made it here\n");
+            close(inputFD);
+            
+            fflush(stdout);
+        }
+            // printf("inputFileName is: %s\n", inputFileName);
+            // fflush(stdout);
+        
+        else if (strcmp(input[i], ">") == 0) {
+            outputFD = open(input[i+1], O_RDONLY);
+            close(outputFD);
+        }
+
+        i++;
+    }
+
+
+    execvp(input[0], input);                                 // execvp returns only on error
+    perror("execvp");
 }
