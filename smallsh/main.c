@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 /* 
-*  Constant declarations: shell input size
+*  Constant declarations: command line input size
 */
 #define MAX_LENGTH 2048
 #define MAX_ARGS 512
@@ -25,12 +25,12 @@
 *  Global variable declarations for shell processing
 */
 int    runInBackground = 0;                                      // Flag for background process
-char*  input[MAX_ARGS];                                          // Command prompt input
+char*  input[MAX_ARGS];                                          // Command prompt input arr
 int    numOfArgs;                                                // Length of input arr
 int    status = 0;                                               // Tracks exit status
-int    maxChildPs = 10;                                          // Limit for number of forks
-int    childPsCount = 0;                                         // Current number of child forks
-int*   childPsPtr;                                               // Pointer to heap memory storing forked PIDs
+int    maxPIDS = 10;                                             // Limit for number of forked PIDs
+int    pidsCount = 0;                                            // Current number of PIDs in array
+int*   forkedPIDS;                                               // Pointer to heap memory storing forked PIDs
 
 /* 
 *  Function declarations
@@ -52,7 +52,7 @@ void  handle_SIGTSTP(int signo);
 */
 int main() {
     
-    childPsPtr = malloc(maxChildPs * sizeof(int));              // Initializes heap space for PID array
+    forkedPIDS = malloc(maxPIDS * sizeof(int));              // Initializes heap space for PID array
     struct sigaction SIGSTSTP_action = {0};                     // Initialize empty structs for signal handling
     struct sigaction SIGINT_action = {0};
 
@@ -69,7 +69,7 @@ int main() {
     sigaction(SIGINT, &SIGINT_action, NULL);
 
     runShell();
-    free(childPsPtr);                                           // Frees heap memory
+    free(forkedPIDS);                                           // Frees heap memory
     return 0;
 }
 
@@ -297,7 +297,7 @@ void executeChildProcess() {
         }
     }
 
-    free(childPsPtr);
+    free(forkedPIDS);
     exit(EXIT_FAILURE);
 }
 
@@ -349,36 +349,36 @@ int redirect(char *path, int fromFD, int closeFD) {
 
 void storePID(int pid) {
 	// dynamically allocate additional memory when the array fills up
-	if (childPsCount == maxChildPs) {
-		maxChildPs *= 2;
-		childPsPtr = realloc(childPsPtr, maxChildPs * sizeof(int));
+	if (pidsCount == maxPIDS) {
+		maxPIDS *= 2;
+		forkedPIDS = realloc(forkedPIDS, maxPIDS * sizeof(int));
 	}
-    childPsCount++;
-	childPsPtr[childPsCount] = pid;
+    pidsCount++;
+	forkedPIDS[pidsCount] = pid;
 }
 
 int checkPIDs() {
     int waitStatus;
 
-    for (int i=0; i < childPsCount; i++) {
-        if (waitpid(childPsPtr[i], &waitStatus, WNOHANG) != 0) {
+    for (int i=0; i < pidsCount; i++) {
+        if (waitpid(forkedPIDS[i], &waitStatus, WNOHANG) != 0) {
             
             // print the appropriate message based on termination type
 			if (WIFEXITED(waitStatus)) {
-				printf("background pid %d is done: exit value %d\n", childPsPtr[i], WEXITSTATUS(waitStatus));
+				printf("background pid %d is done: exit value %d\n", forkedPIDS[i], WEXITSTATUS(waitStatus));
 				fflush(stdout);
 			}
 			else if (WIFSIGNALED(waitStatus)) {
-				printf("background pid %d is done: terminated by signal %d\n", childPsPtr[i], WTERMSIG(waitStatus));
+				printf("background pid %d is done: terminated by signal %d\n", forkedPIDS[i], WTERMSIG(waitStatus));
 				fflush(stdout);
 			}
             
             // Updates the pid array by moving processes one index to the left
-			for (int j = i + 1; j < childPsCount; j++) {
-				childPsPtr[j - 1] = childPsPtr[j];
+			for (int j = i + 1; j < pidsCount; j++) {
+				forkedPIDS[j - 1] = forkedPIDS[j];
 			}
 
-			childPsCount--;
+			pidsCount--;
 			return 1;
         }
     }
