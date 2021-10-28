@@ -64,6 +64,11 @@ int main() {
         numOfArgs = 0;                                          // Empties input array and arg count variables
         memset(input, '\0', MAX_LENGTH);
         getCommandInput(&numOfArgs);
+
+        // for (int i=0; i<numOfArgs; i++) {
+        //     printf("command is: %s\n", input[i]);
+        // }
+
         runShellProgram = parseCommandInput(numOfArgs);
         // free(childPsPtr);
     }
@@ -105,7 +110,7 @@ int getCommandInput(int* numOfArgs) {
     // Parses buffer arguments into input char array
     char* token = strtok(buffer, " ");
     while (token != NULL) {
-        input[*numOfArgs] = token;                      // Sets the token to the next index in the input array 
+        input[*numOfArgs] = strdup(token);                      // Sets the token to the next index in the input array 
         token = strtok(NULL, " ");	                    // Obtains the next token
         ++*numOfArgs;
     }
@@ -247,7 +252,8 @@ void executeChildProcess(int numOfArgs) {
 
         // Redirects input from file on the right
         if (strcmp(input[i], "<") == 0) {
-            input[i] = NULL;
+            // We need execvp to ignore this symbol
+            input[i] = NULL;                                    
 
             // Calls helper function to redirect input
             if (input[i+1]) {
@@ -261,6 +267,7 @@ void executeChildProcess(int numOfArgs) {
             
         // Redirects output to file on the right
         } else if (strcmp(input[i], ">") == 0) {
+            // We need execvp to ignore this symbol
             input[i] = NULL;
 
             // Calls helper function to redirect output
