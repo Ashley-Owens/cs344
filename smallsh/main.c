@@ -23,16 +23,14 @@
 
 
 /* 
-*  Global variable declarations: I tried to pass these around to my
-*  helper functions but couldn't figure out how to stop pointer decay
+*  Global variable declarations for shell processing
 */
 int runInBackground = 0;                                        // Flag for background process
 char* input[MAX_ARGS];                                          // Command prompt input
 int status = 0;
-int maxChildPs = 10;
-int childPsCount = 0;
-int* childPsPtr;
-
+int maxChildPs = 10;                                            // Limit for number of forks
+int childPsCount = 0;                                           // Current number of child forks
+int* childPsPtr;                                                // Pointer to array storing fork PIDs
 
 
 /* 
@@ -44,7 +42,7 @@ void changeDirectory();
 void createChildProcess(int numOfArgs);
 void executeChildProcess();
 int redirect(char *path, int fromFd, int closeFd);
-// void storePID(int pid);
+void storePID(int pid);
 
 
 
@@ -56,7 +54,7 @@ int redirect(char *path, int fromFd, int closeFd);
 int main() {
     int numOfArgs;
     bool runShellProgram = true;
-    // childPsPtr = malloc(maxChildPs * sizeof(int));
+    childPsPtr = malloc(maxChildPs * sizeof(int));
     
     while (runShellProgram) {
         fflush(stdout);
@@ -70,9 +68,10 @@ int main() {
         // }
 
         runShellProgram = parseCommandInput(numOfArgs);
-        // free(childPsPtr);
+        
     }
-    return EXIT_SUCCESS;
+    free(childPsPtr);
+    return 0;
 }
 
 /*
@@ -227,7 +226,7 @@ void createChildProcess(int numOfArgs) {
             waitpid(spawnpid, &waitStatus, WNOHANG);
             printf("Background pid is %d\n", spawnpid);
             fflush(stdout);
-            // storePID(spawnpid);
+            storePID(spawnpid);
         } else {
             // blocks the shell process for foreground command 
             waitpid(spawnpid, &waitStatus, 0);
@@ -296,7 +295,7 @@ void executeChildProcess(int numOfArgs) {
         }
     }
 
-    // free(childPsPtr);
+    free(childPsPtr);
     exit(EXIT_FAILURE);
 }
 
@@ -346,12 +345,12 @@ int redirect(char *path, int fromFD, int closeFD) {
 }
 
 
-// void storePID(int pid) {
-// 	// dynamically allocate additional memory when the array fills up
-// 	if (childPsCount == maxChildPs) {
-// 		maxChildPs *= 2;
-// 		childPsPtr = realloc(childPsPtr, maxChildPs * sizeof(int));
-// 	}
-
-// 	childPsPtr[childPsCount++] = pid;
-// }
+void storePID(int pid) {
+	// dynamically allocate additional memory when the array fills up
+	if (childPsCount == maxChildPs) {
+		maxChildPs *= 2;
+		childPsPtr = realloc(childPsPtr, maxChildPs * sizeof(int));
+	}
+    childPsCount++;
+	childPsPtr[childPsCount] = pid;
+}
