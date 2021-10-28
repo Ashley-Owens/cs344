@@ -309,6 +309,8 @@ void executeChildProcess() {
 *   path: filename to open for redirection
 *   fromFD: file descriptor number (either 0 or 1)
 *   closeFD: if redirection fails, the file descriptor to close
+*
+*   Returns: file descriptor identifier, else EXIT_FAILURE
 */
 int redirect(char *path, int fromFD, int closeFD) {
 	int toFD;
@@ -346,9 +348,16 @@ int redirect(char *path, int fromFD, int closeFD) {
 	return toFD;
 }
 
-
+/*
+*   storePID()
+*   Function to append a newly created PID to the pid array. If 
+*   If there are more processes than the array can hold, reallocates
+*   heap memory to accommodate additional processes. 
+*
+*   pid: process ID number of the forked process
+*/
 void storePID(int pid) {
-	// dynamically allocate additional memory when the array fills up
+	// Allocate additional memory when the array reaches max allotment
 	if (pidsCount == maxPIDS) {
 		maxPIDS *= 2;
 		forkedPIDS = realloc(forkedPIDS, maxPIDS * sizeof(int));
@@ -357,6 +366,15 @@ void storePID(int pid) {
 	forkedPIDS[pidsCount] = pid;
 }
 
+/*
+*   checkPID()
+*   Iterates through the pid array, checking for completed processes. 
+*   Prints messages according to completed process termination type. 
+*   Updates the pid array, removing the completed processes and moving
+*   array elements up to eliminate empty indices in the array. 
+*
+*   Returns: 0 for completed process, else 1
+*/
 int checkPIDs() {
     int waitStatus;
 
@@ -390,7 +408,10 @@ int checkPIDs() {
 *   Toggles foreground process: when SIGTSTP is called, global 
 *   varible is updated and message is written reentrantly. 
 *   Code modified from signal handling expoloration: https://bit.ly/3BqLiIh
+*
+*   signo: specifies type of signal
 */
+
 void handle_SIGTSTP(int signo) {
 
     // If true, set to false and display reentrant message
