@@ -21,18 +21,18 @@
 #define MAX_LENGTH 2048
 #define MAX_ARGS 512
 
-/* 
-*  Struct declarations: signal handlers
-*/
-// struct sigaction
-
 
 /* 
 *  Global variable declarations: I tried to pass these around to my
 *  helper functions but couldn't figure out how to stop pointer decay
 */
-int runInBackground;                                            // Flag for background process
+int runInBackground = 0;                                        // Flag for background process
 char* input[MAX_ARGS];                                          // Command prompt input
+int status = 0;
+int maxChildPs = 10;
+int childPsCount = 0;
+int* childPsPtr;
+
 
 
 /* 
@@ -42,7 +42,9 @@ int getCommandInput(int* numOfArgs);
 int parseCommandInput(int numOfArgs);
 void changeDirectory();
 void createChildProcess(int numOfArgs);
-void executeChildProcess(int numOfArgs);
+void executeChildProcess();
+int redirect(char *path, int fromFd, int closeFd);
+// void storePID(int pid);
 
 
 
@@ -54,14 +56,16 @@ void executeChildProcess(int numOfArgs);
 int main() {
     int numOfArgs;
     bool runShellProgram = true;
+    // childPsPtr = malloc(maxChildPs * sizeof(int));
     
     while (runShellProgram) {
         fflush(stdout);
         fflush(stdin);
-        numOfArgs = 0;                                          // Reinitializes input array and arg count variables
+        numOfArgs = 0;                                          // Empties input array and arg count variables
         memset(input, '\0', MAX_LENGTH);
         getCommandInput(&numOfArgs);
         runShellProgram = parseCommandInput(numOfArgs);
+        // free(childPsPtr);
     }
     return EXIT_SUCCESS;
 }
@@ -71,6 +75,8 @@ int main() {
 *   Performs command line prompt, ignores newlines and code comments.
 *   Appends stdin to global input array, converts $$ into PID, sets the
 *   global background flag, and caculates number of input arguments.
+* 
+*   numOfArgs: length of the command input array
 */
 int getCommandInput(int* numOfArgs) {
     char buffer[MAX_LENGTH];
@@ -78,8 +84,8 @@ int getCommandInput(int* numOfArgs) {
     // Command line prompt
     do {
         printf(": ");
-        fflush(stdout);
-        fgets(buffer, MAX_LENGTH, stdin);               // Stores input into buffer string
+        
+        fgets(buffer, MAX_LENGTH +1, stdin);               // Stores input into buffer string
         strtok(buffer, "\n");                           // Ends token scan at the newline char
     } while (buffer[0] == '\n' || buffer[0] == '#');    // Ignores empty lines and code comments
 
@@ -119,6 +125,8 @@ int getCommandInput(int* numOfArgs) {
 *   Iterates through user input, parses commands and calls
 *   helper functions to perform requested actions. Returns
 *   0 to "exit" or 1 to continue running the program.
+* 
+*   numOfArgs: length of the command input array
 */
 int parseCommandInput(int numOfArgs) {
 
@@ -140,6 +148,7 @@ int parseCommandInput(int numOfArgs) {
         fflush(stdout);
     }
 
+    // Creates a fork and executes commands
     else {
         createChildProcess(numOfArgs);
         fflush(stdout);
@@ -177,92 +186,165 @@ void changeDirectory() {
     }
 }
 
-void printStatus() {
-
-}
-
+/*
+*   createChildProcess()
+*   Creates a child process to execute user input commands. 
+*   Uses global variable to determine if child process should
+*   run in the foreground or background. Tracks child processes
+*   in a global array.
+* 
+*   numOfArgs: length of the command input array
+*/
 void createChildProcess(int numOfArgs) {
-    
-    
     // Code modified from Exploration: Creating & terminating processes
     // https://bit.ly/2XOmwDV
-    pid_t spawnpid = -5;                                            // Sets spawnpid to placeholder value
-    int   childExitStatus;
-    int   childPID;
+    pid_t spawnpid = fork();                                    
+    int   waitStatus;
+    
+    // Parent executes this code when child fork fails
+    if (spawnpid < 0) {
+        perror("fork() failed!");
+        status = 1;
+        exit(1);
+    }
 
-    spawnpid = fork();                                              // Creates a child fork from the smallsh process
-    switch (spawnpid){
-        // Parent executes this code when child fork fails
-        case -1:
-            perror("fork() failed!");
-            exit(1);
-            break;
+    // Fork succeeded: child executes this code
+    else if (spawnpid == 0) {
+        // printf("I am the child. My pid  = %d\n", getpid());
+        executeChildProcess(numOfArgs);
+    }           
 
-        // Fork succeeded: child executes this code
-        case 0:
-            // printf("I am the child. My pid  = %d\n", getpid());
-            executeChildProcess(numOfArgs);
-
-        // Parent executes this code
-        default:
-            // printf("PARENT: making child a zombie for 10 seconds");
-            // fflush(stdout);
-            // sleep(10);
-            // spawnpid = waitpid(spawnpid, &childExitStatus, 0);
-            // spawnpid is the pid of the child
-            // printf("I am the parent. My pid  = %d\n", getpid());
-            childPID = wait(&childExitStatus);
-            printf("Parent's waiting is done as the child with pid %d exited\n", childPID);
-            break;
+     // Parent executes this code 
+    else {
+        // spawnpid is the pid of the child
+        if (runInBackground) {
+            printf("I am the parent. My pid  = %d\n", getpid());
+            waitpid(spawnpid, &waitStatus, WNOHANG);
+            printf("Background pid is %d\n", spawnpid);
+            fflush(stdout);
+            // storePID(spawnpid);
+        } else {
+            // blocks the shell process for foreground command 
+            waitpid(spawnpid, &waitStatus, 0);
         }
-
-    // both parent and child execute code here
+    }
 }
 
+/*
+*   executeChildProcess()
+*   Iterates theough the user's input commands, uses a helper
+*   function to handle file redirects, executes the parsed
+*   command using execvp().
+* 
+*   numOfArgs: length of the command input array
+*/
 void executeChildProcess(int numOfArgs) {
     int     i = 0;
-    int     inputFD;
-    int     outputFD;
-    int     result;
+    int     fdsArr[2] = {-1};
 
-    // Iterate through the input
-    while (input[i] != NULL) {
+    // Iterate through the input to get commands and filenames
+    while (i < numOfArgs) {
 
+        // Redirects input from file on the right
         if (strcmp(input[i], "<") == 0) {
-            printf("filename is: %s\n", input[i+1]);
-            inputFD = open(input[i+1], O_RDONLY);
-            printf("inputFD is %i\n", inputFD);
-            fflush(stdout);
+            input[i] = NULL;
 
-            // Catches error if unable to open given filename
-            if (inputFD < 0) {
-                perror("Error");
-                exit(1);
+            // Calls helper function to redirect input
+            if (input[i+1]) {
+                fdsArr[0] = redirect(input[i+1], STDIN_FILENO, -1);
+    
+            } else {
+                if (runInBackground) {
+                    fdsArr[0] = redirect("/dev/null", STDIN_FILENO, -1);
+                }
             }
             
-            // Use dup2 to point inputFD
-            // result = dup2(inputFD, 0);
-            // if (result < 0) {
-            //     perror("dup2"); 
-            //     exit(1); 
-            // }
-            printf("we made it here\n");
-            close(inputFD);
-            
-            fflush(stdout);
-        }
-            // printf("inputFileName is: %s\n", inputFileName);
-            // fflush(stdout);
-        
-        else if (strcmp(input[i], ">") == 0) {
-            outputFD = open(input[i+1], O_RDONLY);
-            close(outputFD);
+        // Redirects output to file on the right
+        } else if (strcmp(input[i], ">") == 0) {
+            input[i] = NULL;
+
+            // Calls helper function to redirect output
+            if (input[i+1]) {
+                fdsArr[1] = redirect(input[i+1], STDOUT_FILENO, fdsArr[0]);
+    
+            } else {
+                if (runInBackground) {
+                    fdsArr[1] = redirect("/dev/null", STDOUT_FILENO, fdsArr[0]);
+                }
+            }
         }
 
         i++;
     }
 
+    // Executes command using input arguments
+    execvp(input[0], input);                                            // execvp returns only on error
+    fprintf(stderr, "%s: no such file or directory\n", input[0]);
+	fflush(stderr);
 
-    execvp(input[0], input);                                 // execvp returns only on error
-    perror("execvp");
+    // If any fds are still open, closes them
+    for (int i=0; i < 2; i++) {
+        if (fdsArr[i] > -1) {
+            close(fdsArr[i]);
+        }
+    }
+
+    // free(childPsPtr);
+    exit(EXIT_FAILURE);
 }
+
+/*
+*   redirect()
+*   Function to handle file redirects to the given filename. If 
+*   the filename can't be opened, process is terminated.
+*
+*   path: filename to open for redirection
+*   fromFD: file descriptor number (either 0 or 1)
+*   closeFD: if redirection fails, the file descriptor to close
+*/
+int redirect(char *path, int fromFD, int closeFD) {
+	int toFD;
+	char redirStr[7] = "";
+
+	// opens a file descriptor
+	if (fromFD == STDIN_FILENO) {
+		toFD = open(path, O_RDONLY);
+		strcpy(redirStr, "input");
+	}
+	else {
+		if (strcmp("/dev/null", path) == 0) {
+			toFD = open(path, O_WRONLY);
+		}
+		else {
+			toFD = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+		}
+		strcpy(redirStr, "output");
+	}
+
+	// terminate the process on failure
+	if (toFD == -1) {
+		fprintf(stderr, "cannot open %s for %s\n", path, redirStr);
+		fflush(stderr);
+
+		// close the specified open file if necessary to prevent errors
+		if (closeFD >= 0) {
+			close(closeFD);
+		}
+		exit(EXIT_FAILURE);
+	}
+
+    // Makes file descriptors equivalent
+	dup2(toFD, fromFD);
+	return toFD;
+}
+
+
+// void storePID(int pid) {
+// 	// dynamically allocate additional memory when the array fills up
+// 	if (childPsCount == maxChildPs) {
+// 		maxChildPs *= 2;
+// 		childPsPtr = realloc(childPsPtr, maxChildPs * sizeof(int));
+// 	}
+
+// 	childPsPtr[childPsCount++] = pid;
+// }
