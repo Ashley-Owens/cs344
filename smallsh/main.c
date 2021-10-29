@@ -51,7 +51,7 @@ void  handle_SIGTSTP(int signo);
 
 /*
 *   Main Function: initializes signal structs, allocates
-*   heap memory for child process array, and calls
+*   heap memory for forked PIDs array, and calls
 *   helper function to run the shell. Signal handler
 *   code modified from Exploration: Signal Handling API
 *   https://bit.ly/3BqLiIh
@@ -59,16 +59,16 @@ void  handle_SIGTSTP(int signo);
 int main() {
     
     forkedPIDS = malloc(maxPIDS * sizeof(int));                 // Initializes heap space for PID array
-    struct sigaction SIGSTSTP_action = {0};                     // Initializes empty structs for signal handling
+    struct sigaction SIGTSTP_action = {0};                     // Initializes empty structs for signal handling
     struct sigaction SIGINT_action = {0};
 
     // Redirects ^Z signal to handle_SIGTSTP() function
-    SIGSTSTP_action.sa_handler = handle_SIGTSTP;                // Register handle_SIGTSTP as the signal handler
-    sigfillset(&SIGSTSTP_action.sa_mask);                       // Block all catchable signals while handle_SIGTSTP is running
-    SIGSTSTP_action.sa_flags = SA_RESTART;                      // Avoids error by restarting the interrupted system call 
-    sigaction(SIGTSTP, &SIGSTSTP_action, NULL);                 // Install signal handler
+    SIGTSTP_action.sa_handler = handle_SIGTSTP;                // Register handle_SIGTSTP as the signal handler
+    sigfillset(&SIGTSTP_action.sa_mask);                       // Block all catchable signals while handle_SIGTSTP is running
+    SIGTSTP_action.sa_flags = SA_RESTART;                      // Avoids error by restarting the interrupted system call 
+    sigaction(SIGTSTP, &SIGTSTP_action, NULL);                 // Install signal handler
 
-    // Ignore sigint signals for child processes (^C)
+    // Ignore sigint signals
     SIGINT_action.sa_handler = SIG_IGN;
     sigfillset(&SIGINT_action.sa_mask);
     SIGINT_action.sa_flags = 0;
@@ -112,7 +112,6 @@ int runShell() {
         // Creates a fork and executes commands
         else {
             createChildProcess();
-            fflush(stdout);
         }
         // Checks PID array for completed background processes
         while (checkPIDs());
@@ -135,6 +134,7 @@ int getCommandInput() {
         printf(": ");
         fgets(buffer, MAX_LENGTH +1, stdin);                // Stores input into buffer string
         strtok(buffer, "\n");                               // Ends token scan at the newline char
+        while (checkPIDs());                                // Checks for finished processes
     } while (buffer[0] == '\n' || buffer[0] == '#');        // Ignores empty lines and code comments
 
 
@@ -161,8 +161,10 @@ int getCommandInput() {
     // Checks for a "run in the background" request and sets global flag
     if (strcmp(input[numOfArgs-1], "&") == 0) {    
         numOfArgs--;
-        input[numOfArgs] = "\0";                           // Replaces '&' with null string for execution to work
+        input[numOfArgs] = NULL;                           // Replaces '&' with Null for execution to work
         runInBackground = 1;
+    } else {
+        runInBackground = 0;                               // Resets runInBackground from previous shell input
     }
 
     return 0;
@@ -182,19 +184,10 @@ void changeDirectory() {
     } else {
         err = chdir(getenv("HOME"));
     }
-
     if (err == -1) {
         printf("cd: no such file or directory\n");
         fflush(stdout);
     }
-
-    // For testing purposes: https://bit.ly/3vKjzAX
-    // char* buffer = getcwd(NULL, 0);
-    // if (buffer) {
-    //     printf("Current working directory: %s\n", buffer);
-    //     free(buffer);
-    //     fflush(stdout);
-    // }
 }
 
 /*
@@ -232,19 +225,33 @@ void createChildProcess() {
 
     // Fork succeeded: child executes this code
     else if (spawnpid == 0) {
-        // printf("I am the child. My pid  = %d\n", getpid());
+        struct sigaction SIGTSTP_action = {0};                     // Initializes empty structs for fork signal handling
+        struct sigaction SIGINT_action = {0};
+
+        // Ignore sigststp signals for child processes
+        SIGTSTP_action.sa_handler = SIG_IGN;                       // Register ignore as the signal handler
+        sigfillset(&SIGTSTP_action.sa_mask);                       // Block all catchable signals while ignore is running
+        SIGTSTP_action.sa_flags = 0;                               // Set flag to 0
+        sigaction(SIGTSTP, &SIGTSTP_action, NULL);                 // Install signal handler
+
+        // Foreground fork terminates on SIGINT
+        if (!runInBackground) {
+            SIGINT_action.sa_handler = SIG_DFL;                     // Register default signal handling
+            sigfillset(&SIGINT_action.sa_mask);
+            SIGINT_action.sa_flags = 0;
+            sigaction(SIGINT, &SIGINT_action, NULL);
+        }
         executeChildProcess();
     }           
 
      // Parent executes this code 
     else {
-        // spawnpid is the pid of the child
         if (runInBackground) {
-            // printf("I am the parent. My pid  = %d\n", getpid());
             waitpid(spawnpid, &waitStatus, WNOHANG);
+            appendPID(spawnpid);
             printf("Background pid is %d\n", spawnpid);
             fflush(stdout);
-            appendPID(spawnpid);
+            
         } else {
             // Blocks the shell process for command to run in the fg 
             waitpid(spawnpid, &waitStatus, 0);
@@ -383,13 +390,14 @@ int redirect(char* path, int fromFD, int closeFD) {
 *   pid: process ID number of the forked process
 */
 void appendPID(int pid) {
+
 	// Allocate additional memory when the array reaches max allotment
 	if (pidsCount == maxPIDS) {
 		maxPIDS *= 2;
 		forkedPIDS = realloc(forkedPIDS, maxPIDS * sizeof(int));
 	}
-    pidsCount++;
-	forkedPIDS[pidsCount] = pid;
+
+	forkedPIDS[pidsCount++] = pid;
 }
 
 /*
@@ -406,6 +414,7 @@ int checkPIDs() {
 
     // Iterates through forkedPIDS array
     for (int i=0; i < pidsCount; i++) {
+
         if (waitpid(forkedPIDS[i], &waitStatus, WNOHANG) != 0) {
             
             // Prints message based on termination type
