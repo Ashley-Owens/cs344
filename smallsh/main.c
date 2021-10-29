@@ -68,7 +68,7 @@ int main() {
     SIGTSTP_action.sa_flags = SA_RESTART;                      // Avoids error by restarting the interrupted system call 
     sigaction(SIGTSTP, &SIGTSTP_action, NULL);                 // Install signal handler
 
-    // Ignore sigint signals
+    // Parent process must ignore sigint signals
     SIGINT_action.sa_handler = SIG_IGN;
     sigfillset(&SIGINT_action.sa_mask);
     SIGINT_action.sa_flags = 0;
@@ -225,18 +225,18 @@ void createChildProcess() {
 
     // Fork succeeded: child executes this code
     else if (spawnpid == 0) {
-        struct sigaction SIGTSTP_action = {0};                     // Initializes empty structs for fork signal handling
+        struct sigaction SIGTSTP_action = {0};                     // Initializes empty structs for child signal handling
         struct sigaction SIGINT_action = {0};
 
-        // Ignore sigststp signals for child processes
+        // Child BG and FG processes must ignore sigststp signals
         SIGTSTP_action.sa_handler = SIG_IGN;                       // Register ignore as the signal handler
         sigfillset(&SIGTSTP_action.sa_mask);                       // Block all catchable signals while ignore is running
         SIGTSTP_action.sa_flags = 0;                               // Set flag to 0
         sigaction(SIGTSTP, &SIGTSTP_action, NULL);                 // Install signal handler
 
-        // Foreground fork terminates on SIGINT
+        // Child foreground process must terminate on SIGINT
         if (!runInBackground) {
-            SIGINT_action.sa_handler = SIG_DFL;                     // Register default signal handling
+            SIGINT_action.sa_handler = SIG_DFL;                     // Register default signal handling to allow signal
             sigfillset(&SIGINT_action.sa_mask);
             SIGINT_action.sa_flags = 0;
             sigaction(SIGINT, &SIGINT_action, NULL);
@@ -248,7 +248,7 @@ void createChildProcess() {
     else {
         if (runInBackground) {
             waitpid(spawnpid, &waitStatus, WNOHANG);
-            appendPID(spawnpid);
+            appendPID(spawnpid);                                    // Adds PID to array to track bg processes
             printf("Background pid is %d\n", spawnpid);
             fflush(stdout);
             
@@ -396,7 +396,7 @@ void appendPID(int pid) {
 		maxPIDS *= 2;
 		forkedPIDS = realloc(forkedPIDS, maxPIDS * sizeof(int));
 	}
-
+    // Adds pid to the array
 	forkedPIDS[pidsCount++] = pid;
 }
 
@@ -427,11 +427,10 @@ int checkPIDs() {
 				fflush(stdout);
 			}
             
-            // Updates the pid array by moving processes one index to the left
+            // Removes pid by moving processes one index to the left
 			for (int j = i + 1; j < pidsCount; j++) {
 				forkedPIDS[j - 1] = forkedPIDS[j];
 			}
-
 			pidsCount--;
 			return 1;
         }
@@ -449,13 +448,13 @@ int checkPIDs() {
 */
 
 void handle_SIGTSTP(int signo) {
-    char* enterFG = "Entering foreground-only mode (& is now ignored)\n";
-    char* exitFG = "Exiting foreground-only mode\n";
+    char* enterFG = "\nEntering foreground-only mode (& is now ignored)\n: ";
+    char* exitFG = "\nExiting foreground-only mode\n: ";
 
     // If true, set to false and display reentrant message
 	if (runInBackground == 1) {
 		// Use write() because it's reentrant
-		write(1, enterFG, 49);                                           
+		write(1, enterFG, 52);                                           
 		fflush(stdout);
 		runInBackground = 0;
 	}
@@ -463,7 +462,7 @@ void handle_SIGTSTP(int signo) {
 	// If false, set to true and display reentrant message
 	else {
 		// Use write() because it's reentrant
-		write (1, exitFG, 29);
+		write (1, exitFG, 32);
 		fflush(stdout);
 		runInBackground = 1;
 	}
