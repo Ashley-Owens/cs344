@@ -27,7 +27,8 @@
 int    runInBackground = 0;                                      // Flag for background process
 char*  input[MAX_ARGS];                                          // Command prompt input array
 int    numOfArgs;                                                // Length of input array
-int    status = 0;                                               // Tracks exit status
+int    status = 0;                                               // Tracks exit status of a process
+int    termType = 0;                                             // Tracks termination type: 0 = exitStatus, 1 = signalExit
 int    maxPIDS = 10;                                             // Limit for number of forked PIDs
 int    pidsCount = 0;                                            // Current number of PIDs in array
 int*   forkedPIDS;                                               // Pointer to heap memory storing forked PIDs
@@ -37,14 +38,16 @@ int*   forkedPIDS;                                               // Pointer to h
 */
 int   runShell();
 int   getCommandInput();
+void  killJobs();
 void  changeDirectory();
+void  getStatus();
 void  createChildProcess();
 void  executeChildProcess();
 int   redirect(char *path, int fromFd, int closeFd);
 void  appendPID(int pid);
 int   checkPIDs();
 void  handle_SIGTSTP(int signo);
-void killJobs();
+
 
 /*
 *   Main Function: initializes signal structs, allocates
@@ -101,10 +104,9 @@ int runShell() {
             changeDirectory();
         }
 
-        // Figure out status...
+        // Prints exit status of last shell process
         else if (strcmp(input[0], "status") == 0) {
-            printf("status is true, printing out terminating signal...\n");
-            fflush(stdout);
+            getStatus();
         }
 
         // Creates a fork and executes commands
@@ -196,6 +198,20 @@ void changeDirectory() {
 }
 
 /*
+*   getStatus()
+*   Prints out out either the exit status or the terminating signal 
+*   of the last foreground process ran by the shell.
+*/
+void getStatus() {
+    if (termType == 0) {
+        printf("exit value %d\n", status);
+    } else {
+        printf("terminated by signal %d\n", status);
+    }
+    fflush(stdout);
+}
+
+/*
 *   createChildProcess()
 *   Creates a child process to execute user input commands. 
 *   Uses global variable to determine if child process should
@@ -212,7 +228,6 @@ void createChildProcess() {
     if (spawnpid < 0) {
         perror("fork() failed!");
         status = 1;
-        exit(1);
     }
 
     // Fork succeeded: child executes this code
@@ -225,14 +240,27 @@ void createChildProcess() {
     else {
         // spawnpid is the pid of the child
         if (runInBackground) {
-            printf("I am the parent. My pid  = %d\n", getpid());
+            // printf("I am the parent. My pid  = %d\n", getpid());
             waitpid(spawnpid, &waitStatus, WNOHANG);
             printf("Background pid is %d\n", spawnpid);
             fflush(stdout);
             appendPID(spawnpid);
         } else {
-            // blocks the shell process for foreground command 
+            // Blocks the shell process for command to run in the fg 
             waitpid(spawnpid, &waitStatus, 0);
+
+            // Set status based on the type of termination of the fg process
+            if (WIFEXITED(waitStatus)) {
+				termType = 0;
+				status = WEXITSTATUS(waitStatus);
+			}
+			else if (WIFSIGNALED(waitStatus)) {
+				termType = 1;
+				status = WTERMSIG(waitStatus);
+				printf("terminated by signal %d\n", status);
+				fflush(stdout);
+			}
+
         }
     }
 }
