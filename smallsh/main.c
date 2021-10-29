@@ -44,6 +44,7 @@ int   redirect(char *path, int fromFd, int closeFd);
 void  appendPID(int pid);
 int   checkPIDs();
 void  handle_SIGTSTP(int signo);
+void killJobs();
 
 /*
 *   Main Function: initializes signal structs, allocates
@@ -89,10 +90,9 @@ int runShell() {
         memset(input, '\0', MAX_LENGTH);
         getCommandInput();
 
-        // Exits the shell: need to figure out how to kill jobs
+        // Exits the shell
         if (strcmp(input[0], "exit") == 0) {
-            printf("exiting, killing jobs...\n");
-            fflush(stdout);
+            killJobs();
             return 0;
         }
 
@@ -412,20 +412,41 @@ int checkPIDs() {
 */
 
 void handle_SIGTSTP(int signo) {
+    char* enterFG = "Entering foreground-only mode (& is now ignored)\n";
+    char* exitFG = "Exiting foreground-only mode\n";
 
     // If true, set to false and display reentrant message
 	if (runInBackground == 1) {
-		char* message = "Entering foreground-only mode (& is now ignored)\n";
-		write(1, message, 49);
+		// Use write() because it's reentrant
+		write(1, enterFG, 49);                                           
 		fflush(stdout);
 		runInBackground = 0;
 	}
 
 	// If false, set to true and display reentrant message
 	else {
-		char* message = "Exiting foreground-only mode\n";
-		write (1, message, 29);
+		// Use write() because it's reentrant
+		write (1, exitFG, 29);
 		fflush(stdout);
 		runInBackground = 1;
 	}
+}
+
+/*
+*   killJobs()
+*   Checks global PID array for any running processes and kills them. 
+*   Exits 0 if no additional processes are terminated, else exits 1.
+*/
+void killJobs() {
+
+    // There are no other jobs to kill, exit the program
+    if (pidsCount == 0) {
+        exit(0);
+    }
+    
+    // Iterate through PID array, killing each process
+    for (int i=0; i < pidsCount; i++) {
+        kill(forkedPIDS[i], SIGTERM);
+    }
+    exit(1);
 }
