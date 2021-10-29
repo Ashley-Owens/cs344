@@ -25,6 +25,7 @@
 *  Global variable declarations for shell processing
 */
 int    runInBackground = 0;                                      // Flag for background process
+int    allowBackground = 1;                                      // Flag for signal handler
 char*  input[MAX_ARGS];                                          // Command prompt input array
 int    numOfArgs;                                                // Length of input array
 int    status = 0;                                               // Tracks exit status of a process
@@ -179,6 +180,7 @@ int getCommandInput() {
 void changeDirectory() {
     int err;
 
+    // If a path is present, change to it
     if (input[1]) {
         err = chdir(input[1]);
     } else {
@@ -246,10 +248,11 @@ void createChildProcess() {
 
      // Parent executes this code 
     else {
-        if (runInBackground) {
+        // Runs process in background if user requested it and signal handler allows it
+        if (runInBackground && allowBackground) {
             waitpid(spawnpid, &waitStatus, WNOHANG);
             appendPID(spawnpid);                                    // Adds PID to array to track bg processes
-            printf("Background pid is %d\n", spawnpid);
+            printf("background pid is %d\n", spawnpid);
             fflush(stdout);
             
         } else {
@@ -267,7 +270,6 @@ void createChildProcess() {
 				printf("terminated by signal %d\n", status);
 				fflush(stdout);
 			}
-
         }
     }
 }
@@ -280,7 +282,7 @@ void createChildProcess() {
 */
 void executeChildProcess() {
     int     i = 0;
-    int     fdsArr[2] = {-1};
+    int     fdsArr[2] = {-1};                                       // Array to store file descriptors
 
     // Iterate through the input to get commands and filenames
     while (i < numOfArgs) {
@@ -295,6 +297,7 @@ void executeChildProcess() {
                 fdsArr[0] = redirect(input[i+1], STDIN_FILENO, -1);
     
             } else {
+                // Redirects for user when running commands in bg
                 if (runInBackground) {
                     fdsArr[0] = redirect("/dev/null", STDIN_FILENO, -1);
                 }
@@ -310,6 +313,7 @@ void executeChildProcess() {
                 fdsArr[1] = redirect(input[i+1], STDOUT_FILENO, fdsArr[0]);
     
             } else {
+                // Redirects for user when running commands in bg
                 if (runInBackground) {
                     fdsArr[1] = redirect("/dev/null", STDOUT_FILENO, fdsArr[0]);
                 }
@@ -347,12 +351,12 @@ void executeChildProcess() {
 */
 int redirect(char* path, int fromFD, int closeFD) {
 	int toFD;
-	char redirStr[7] = "";
+	char redirType[7];
 
 	// Opens a file descriptor
 	if (fromFD == STDIN_FILENO) {
 		toFD = open(path, O_RDONLY);
-		strcpy(redirStr, "input");
+		strcpy(redirType, "input");
 	}
 	else {
 		if (strcmp("/dev/null", path) == 0) {
@@ -361,12 +365,12 @@ int redirect(char* path, int fromFD, int closeFD) {
 		else {
 			toFD = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0644);
 		}
-		strcpy(redirStr, "output");
+		strcpy(redirType, "output");
 	}
 
 	// Terminates the process on failure and prints error message
 	if (toFD == -1) {
-		fprintf(stderr, "cannot open %s for %s\n", path, redirStr);
+		fprintf(stderr, "cannot open %s for %s\n", path, redirType);
 		fflush(stderr);
 
 		// close the specified open file if necessary to prevent errors
@@ -452,11 +456,11 @@ void handle_SIGTSTP(int signo) {
     char* exitFG = "\nExiting foreground-only mode\n: ";
 
     // If true, set to false and display reentrant message
-	if (runInBackground == 1) {
+	if (allowBackground == 1) {
 		// Use write() because it's reentrant
 		write(1, enterFG, 52);                                           
 		fflush(stdout);
-		runInBackground = 0;
+		allowBackground = 0;
 	}
 
 	// If false, set to true and display reentrant message
@@ -464,7 +468,7 @@ void handle_SIGTSTP(int signo) {
 		// Use write() because it's reentrant
 		write (1, exitFG, 32);
 		fflush(stdout);
-		runInBackground = 1;
+		allowBackground = 1;
 	}
 }
 
