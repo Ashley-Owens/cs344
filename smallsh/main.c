@@ -25,8 +25,8 @@
 *  Global variable declarations for shell processing
 */
 int    runInBackground = 0;                                      // Flag for background process
-char*  input[MAX_ARGS];                                          // Command prompt input arr
-int    numOfArgs;                                                // Length of input arr
+char*  input[MAX_ARGS];                                          // Command prompt input array
+int    numOfArgs;                                                // Length of input array
 int    status = 0;                                               // Tracks exit status
 int    maxPIDS = 10;                                             // Limit for number of forked PIDs
 int    pidsCount = 0;                                            // Current number of PIDs in array
@@ -41,28 +41,30 @@ void  changeDirectory();
 void  createChildProcess();
 void  executeChildProcess();
 int   redirect(char *path, int fromFd, int closeFd);
-void  storePID(int pid);
+void  appendPID(int pid);
 int   checkPIDs();
 void  handle_SIGTSTP(int signo);
 
 /*
 *   Main Function: initializes signal structs, allocates
 *   heap memory for child process array, and calls
-*   helper function to run the shell.
+*   helper function to run the shell. Signal handler
+*   code modified from Exploration: Signal Handling API
+*   https://bit.ly/3BqLiIh
 */
 int main() {
     
-    forkedPIDS = malloc(maxPIDS * sizeof(int));              // Initializes heap space for PID array
-    struct sigaction SIGSTSTP_action = {0};                     // Initialize empty structs for signal handling
+    forkedPIDS = malloc(maxPIDS * sizeof(int));                 // Initializes heap space for PID array
+    struct sigaction SIGSTSTP_action = {0};                     // Initializes empty structs for signal handling
     struct sigaction SIGINT_action = {0};
 
-    // Redirect ^Z to custom handle_SIGTSTP()
+    // Redirects ^Z signal to handle_SIGTSTP() function
     SIGSTSTP_action.sa_handler = handle_SIGTSTP;                // Register handle_SIGTSTP as the signal handler
-    sigfillset(&SIGSTSTP_action.sa_mask);                       // Block all catchable signals while handle_SIGINT is running
+    sigfillset(&SIGSTSTP_action.sa_mask);                       // Block all catchable signals while handle_SIGTSTP is running
     SIGSTSTP_action.sa_flags = SA_RESTART;                      // Avoids error by restarting the interrupted system call 
     sigaction(SIGTSTP, &SIGSTSTP_action, NULL);                 // Install signal handler
 
-    // Ignore sigint signals for child processes
+    // Ignore sigint signals for child processes (^C)
     SIGINT_action.sa_handler = SIG_IGN;
     sigfillset(&SIGINT_action.sa_mask);
     SIGINT_action.sa_flags = 0;
@@ -75,13 +77,14 @@ int main() {
 
 /*
 *   runShell()
-*   Runs the shell loop, calls helper functions to obtain
+*   Runs the shell loop, calls helper functions to save
 *   command input, parse commands, and perform requested actions.
 *   Returns 0 for exit, otherwise continues running the program.
 */
 int runShell() {
     
     while (true) {
+        // Empties variables for each shell run
         numOfArgs = 0;
         memset(input, '\0', MAX_LENGTH);
         getCommandInput();
@@ -120,7 +123,7 @@ int runShell() {
 *   Appends stdin to global input array, converts $$ into PID, sets the
 *   global background flag, and caculates number of input arguments.
 * 
-*   numOfArgs: length of the command input array
+*   return: 0
 */
 int getCommandInput() {
     char buffer[MAX_LENGTH];
@@ -128,35 +131,35 @@ int getCommandInput() {
     // Command line prompt
     do {
         printf(": ");
-        fgets(buffer, MAX_LENGTH +1, stdin);             // Stores input into buffer string
-        strtok(buffer, "\n");                           // Ends token scan at the newline char
-    } while (buffer[0] == '\n' || buffer[0] == '#');    // Ignores empty lines and code comments
+        fgets(buffer, MAX_LENGTH +1, stdin);                // Stores input into buffer string
+        strtok(buffer, "\n");                               // Ends token scan at the newline char
+    } while (buffer[0] == '\n' || buffer[0] == '#');        // Ignores empty lines and code comments
 
 
     // Puts PID(s) in Buffer string
     for (int i = 1; i < strlen(buffer); i++) {
 		// Checks for double dollar signs in the string
 		if ((buffer[i - 1] == '$') && (buffer[i] == '$')) {
-			char* temp = strdup(buffer);                // Creates a temp copy of buffer string
-			temp[i-1] = '%';                            // Replaces $$ with %d for string insertion
+			char* temp = strdup(buffer);                   // Creates a temp copy of buffer string
+			temp[i-1] = '%';                               // Replaces $$ with %d for string insertion
 			temp[i] = 'd';
-			sprintf(buffer, temp, getpid());            // Overwrites buffer with PID number in the '$$' position
-			free(temp);                                 // Frees the space used from calling strdup()
+			sprintf(buffer, temp, getpid());               // Overwrites buffer with PID number in the '$$' position
+			free(temp);                                    // Frees the space used from calling strdup()
 		}
 	}
 
     // Parses buffer arguments into input char array
     char* token = strtok(buffer, " ");
     while (token != NULL) {
-        input[numOfArgs] = strdup(token);                      // Sets the token to the next index in the input array 
-        token = strtok(NULL, " ");	                    // Obtains the next token
+        input[numOfArgs] = strdup(token);                  // Copies token string to the next index in input array 
+        token = strtok(NULL, " ");	                       // Obtains the next token
         numOfArgs++;
     }
 
-    // Checks for a run in the background request and sets the flag
+    // Checks for a "run in the background" request and sets global flag
     if (strcmp(input[numOfArgs-1], "&") == 0) {    
         numOfArgs--;
-        input[numOfArgs] = "\0";                       // Replaces '&' with null pointer for later child processes
+        input[numOfArgs] = "\0";                           // Replaces '&' with null string for execution to work
         runInBackground = 1;
     }
 
@@ -166,7 +169,7 @@ int getCommandInput() {
 /*
 *   changeDirectory()
 *   Changes directories: accesses global input array to determine 
-*   if user has entered a directory to perform requested action. 
+*   if user has entered a pathname to perform requested action. 
 *   No directory input automatically navigates to HOME directory.
 */
 void changeDirectory() {
@@ -184,12 +187,12 @@ void changeDirectory() {
     }
 
     // For testing purposes: https://bit.ly/3vKjzAX
-    char* buffer = getcwd(NULL, 0);
-    if (buffer) {
-        printf("Current working directory: %s\n", buffer);
-        free(buffer);
-        fflush(stdout);
-    }
+    // char* buffer = getcwd(NULL, 0);
+    // if (buffer) {
+    //     printf("Current working directory: %s\n", buffer);
+    //     free(buffer);
+    //     fflush(stdout);
+    // }
 }
 
 /*
@@ -198,8 +201,6 @@ void changeDirectory() {
 *   Uses global variable to determine if child process should
 *   run in the foreground or background. Tracks child processes
 *   in a global array.
-* 
-*   numOfArgs: length of the command input array
 */
 void createChildProcess() {
     // Code modified from Exploration: Creating & terminating processes
@@ -228,7 +229,7 @@ void createChildProcess() {
             waitpid(spawnpid, &waitStatus, WNOHANG);
             printf("Background pid is %d\n", spawnpid);
             fflush(stdout);
-            storePID(spawnpid);
+            appendPID(spawnpid);
         } else {
             // blocks the shell process for foreground command 
             waitpid(spawnpid, &waitStatus, 0);
@@ -241,8 +242,6 @@ void createChildProcess() {
 *   Iterates theough the user's input commands, uses a helper
 *   function to handle file redirects, executes the parsed
 *   command using execvp().
-* 
-*   numOfArgs: length of the command input array
 */
 void executeChildProcess() {
     int     i = 0;
@@ -281,7 +280,6 @@ void executeChildProcess() {
                 }
             }
         }
-
         i++;
     }
 
@@ -290,7 +288,7 @@ void executeChildProcess() {
     fprintf(stderr, "%s: no such file or directory\n", input[0]);
 	fflush(stderr);
 
-    // If any fds are still open, closes them
+    // Closes any remaining open file descriptors
     for (int i=0; i < 2; i++) {
         if (fdsArr[i] > -1) {
             close(fdsArr[i]);
@@ -312,11 +310,11 @@ void executeChildProcess() {
 *
 *   Returns: file descriptor identifier, else EXIT_FAILURE
 */
-int redirect(char *path, int fromFD, int closeFD) {
+int redirect(char* path, int fromFD, int closeFD) {
 	int toFD;
 	char redirStr[7] = "";
 
-	// opens a file descriptor
+	// Opens a file descriptor
 	if (fromFD == STDIN_FILENO) {
 		toFD = open(path, O_RDONLY);
 		strcpy(redirStr, "input");
@@ -331,7 +329,7 @@ int redirect(char *path, int fromFD, int closeFD) {
 		strcpy(redirStr, "output");
 	}
 
-	// terminate the process on failure
+	// Terminates the process on failure and prints error message
 	if (toFD == -1) {
 		fprintf(stderr, "cannot open %s for %s\n", path, redirStr);
 		fflush(stderr);
@@ -349,14 +347,14 @@ int redirect(char *path, int fromFD, int closeFD) {
 }
 
 /*
-*   storePID()
-*   Function to append a newly created PID to the pid array. If 
+*   appendPID()
+*   Function to append a newly created PID to the pid array: forkedPIDS.
 *   If there are more processes than the array can hold, reallocates
 *   heap memory to accommodate additional processes. 
 *
 *   pid: process ID number of the forked process
 */
-void storePID(int pid) {
+void appendPID(int pid) {
 	// Allocate additional memory when the array reaches max allotment
 	if (pidsCount == maxPIDS) {
 		maxPIDS *= 2;
@@ -368,8 +366,8 @@ void storePID(int pid) {
 
 /*
 *   checkPID()
-*   Iterates through the pid array, checking for completed processes. 
-*   Prints messages according to completed process termination type. 
+*   Iterates through forkedPIDS array, checking for completed processes. 
+*   Prints messages according to the process termination type. 
 *   Updates the pid array, removing the completed processes and moving
 *   array elements up to eliminate empty indices in the array. 
 *
@@ -378,10 +376,11 @@ void storePID(int pid) {
 int checkPIDs() {
     int waitStatus;
 
+    // Iterates through forkedPIDS array
     for (int i=0; i < pidsCount; i++) {
         if (waitpid(forkedPIDS[i], &waitStatus, WNOHANG) != 0) {
             
-            // print the appropriate message based on termination type
+            // Prints message based on termination type
 			if (WIFEXITED(waitStatus)) {
 				printf("background pid %d is done: exit value %d\n", forkedPIDS[i], WEXITSTATUS(waitStatus));
 				fflush(stdout);
@@ -409,7 +408,7 @@ int checkPIDs() {
 *   varible is updated and message is written reentrantly. 
 *   Code modified from signal handling expoloration: https://bit.ly/3BqLiIh
 *
-*   signo: specifies type of signal
+*   signo: type of signal
 */
 
 void handle_SIGTSTP(int signo) {
