@@ -2,7 +2,6 @@
 // Date: 11/01/2021
 // Program 3: Smallsh
 
-// #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -16,7 +15,7 @@
 #include <unistd.h>
 
 /* 
-*  Constant declarations: command line input size
+*  Constant declarations: command line input sizing
 */
 #define MAX_LENGTH 2048
 #define MAX_ARGS 512
@@ -49,17 +48,16 @@ void  appendPID(int pid);
 int   checkPIDs();
 void  handle_SIGTSTP(int signo);
 
-
 /*
-*   Main Function: initializes signal structs, allocates
-*   heap memory for forked PIDs array, and calls
-*   helper function to run the shell. Signal handler
-*   code modified from Exploration: Signal Handling API
-*   https://bit.ly/3BqLiIh
+*   Main Function: initializes signal structs for parent
+*   process, allocates heap memory for forked PIDs array,
+*   and calls helper function to run the shell. Signal 
+*   handler code modified from Exploration: Signal 
+*   Handling API https://bit.ly/3BqLiIh
 */
 int main() {
     
-    forkedPIDS = malloc(maxPIDS * sizeof(int));                 // Initializes heap space for PID array
+    forkedPIDS = malloc(maxPIDS * sizeof(int));                // Initializes heap space for PID array
     struct sigaction SIGTSTP_action = {0};                     // Initializes empty structs for signal handling
     struct sigaction SIGINT_action = {0};
 
@@ -89,7 +87,7 @@ int main() {
 int runShell() {
     
     while (true) {
-        // Empties variables for each shell run
+        // Empties global variables for each shell run
         numOfArgs = 0;
         memset(input, '\0', MAX_LENGTH);
         getCommandInput();
@@ -114,7 +112,7 @@ int runShell() {
         else {
             createChildProcess();
         }
-        // Checks PID array for completed background processes
+        // Checks PID array to print completed background processes
         while (checkPIDs());
     }
 }
@@ -147,7 +145,7 @@ int getCommandInput() {
 			temp[i-1] = '%';                               // Replaces $$ with %d for string insertion
 			temp[i] = 'd';
 			sprintf(buffer, temp, getpid());               // Overwrites buffer with PID number in the '$$' position
-			free(temp);                                    // Frees the space used from calling strdup()
+			free(temp);                                    // Frees the temp variable from calling strdup()
 		}
 	}
 
@@ -211,7 +209,7 @@ void getStatus() {
 *   Creates a child process to execute user input commands. 
 *   Uses global variable to determine if child process should
 *   run in the foreground or background. Tracks child processes
-*   in a global array.
+*   in a global array. 
 */
 void createChildProcess() {
     // Code modified from Exploration: Creating & terminating processes
@@ -222,6 +220,7 @@ void createChildProcess() {
     // Parent executes this code when child fork fails
     if (spawnpid < 0) {
         perror("fork() failed!");
+        fflush(stdout);
         status = 1;
     }
 
@@ -247,10 +246,11 @@ void createChildProcess() {
     }           
 
      // Parent executes this code 
+     // Code modified from exploration on process API: https://bit.ly/3jPCO7c
     else {
         // Runs process in background if user requested it and signal handler allows it
         if (runInBackground && allowBackground) {
-            waitpid(spawnpid, &waitStatus, WNOHANG);
+            waitpid(spawnpid, &waitStatus, WNOHANG);                // Makes waitpid non-blocking
             appendPID(spawnpid);                                    // Adds PID to array to track bg processes
             printf("background pid is %d\n", spawnpid);
             fflush(stdout);
@@ -260,13 +260,13 @@ void createChildProcess() {
             waitpid(spawnpid, &waitStatus, 0);
 
             // Set status based on the type of termination of the fg process
-            if (WIFEXITED(waitStatus)) {
+            if (WIFEXITED(waitStatus)) {                            
 				termType = 0;
-				status = WEXITSTATUS(waitStatus);
+				status = WEXITSTATUS(waitStatus);                   // Child exited normally
 			}
 			else if (WIFSIGNALED(waitStatus)) {
 				termType = 1;
-				status = WTERMSIG(waitStatus);
+				status = WTERMSIG(waitStatus);                      // Child terminated abnormally
 				printf("terminated by signal %d\n", status);
 				fflush(stdout);
 			}
@@ -277,7 +277,7 @@ void createChildProcess() {
 /*
 *   executeChildProcess()
 *   Iterates theough the user's input commands, uses a helper
-*   function to handle file redirects, executes the parsed
+*   function to handle redirection, and executes the parsed
 *   command using execvp().
 */
 void executeChildProcess() {
@@ -297,7 +297,7 @@ void executeChildProcess() {
                 fdsArr[0] = redirect(input[i+1], STDIN_FILENO, -1);
     
             } else {
-                // Redirects for user when running commands in bg
+                // Redirects to dev/null for user when running commands in bg
                 if (runInBackground) {
                     fdsArr[0] = redirect("/dev/null", STDIN_FILENO, -1);
                 }
@@ -313,7 +313,7 @@ void executeChildProcess() {
                 fdsArr[1] = redirect(input[i+1], STDOUT_FILENO, fdsArr[0]);
     
             } else {
-                // Redirects for user when running commands in bg
+                // Redirects to dev/null for user when running commands in bg
                 if (runInBackground) {
                     fdsArr[1] = redirect("/dev/null", STDOUT_FILENO, fdsArr[0]);
                 }
@@ -340,10 +340,10 @@ void executeChildProcess() {
 
 /*
 *   redirect()
-*   Function to handle file redirects to the given filename. If 
+*   Function to handle redirection to the given filename. If 
 *   the filename can't be opened, process is terminated.
 *
-*   path: filename to open for redirection
+*   path: filename to open for redirection or /dev/null
 *   fromFD: file descriptor number (either 0 or 1)
 *   closeFD: if redirection fails, the file descriptor to close
 *
@@ -409,7 +409,8 @@ void appendPID(int pid) {
 *   Iterates through forkedPIDS array, checking for completed processes. 
 *   Prints messages according to the process termination type. 
 *   Updates the pid array, removing the completed processes and moving
-*   array elements up to eliminate empty indices in the array. 
+*   array elements up to eliminate empty indices in the array. Code
+*   modified from exploration on process API: https://bit.ly/3jPCO7c
 *
 *   Returns: 0 for completed process, else 1
 */
@@ -418,14 +419,16 @@ int checkPIDs() {
 
     // Iterates through forkedPIDS array
     for (int i=0; i < pidsCount; i++) {
-
+        
+        // Non-blocking check to see if process has completed
         if (waitpid(forkedPIDS[i], &waitStatus, WNOHANG) != 0) {
             
-            // Prints message based on termination type
+            // Exited normally
 			if (WIFEXITED(waitStatus)) {
 				printf("background pid %d is done: exit value %d\n", forkedPIDS[i], WEXITSTATUS(waitStatus));
 				fflush(stdout);
 			}
+            // Exited abnormally
 			else if (WIFSIGNALED(waitStatus)) {
 				printf("background pid %d is done: terminated by signal %d\n", forkedPIDS[i], WTERMSIG(waitStatus));
 				fflush(stdout);
@@ -457,19 +460,16 @@ void handle_SIGTSTP(int signo) {
 
     // If true, set to false and display reentrant message
 	if (allowBackground == 1) {
-		// Use write() because it's reentrant
-		write(1, enterFG, 52);                                           
-		fflush(stdout);
-		allowBackground = 0;
+        allowBackground = 0;
+		write(1, enterFG, 52);                                       // Use write() because it's reentrant                        
 	}
 
 	// If false, set to true and display reentrant message
 	else {
-		// Use write() because it's reentrant
+        allowBackground = 1;
 		write (1, exitFG, 32);
-		fflush(stdout);
-		allowBackground = 1;
 	}
+    fflush(stdout);
 }
 
 /*
@@ -484,9 +484,9 @@ void killJobs() {
         exit(0);
     }
     
-    // Iterate through PID array, killing each process
+    // Iterate through PID array, killing each remaining process
     for (int i=0; i < pidsCount; i++) {
-        kill(forkedPIDS[i], SIGTERM);
+        kill(forkedPIDS[i], SIGTERM);                               // SIGTERM allows clean up of a process
     }
     exit(1);
 }
