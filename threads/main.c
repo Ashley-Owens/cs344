@@ -5,6 +5,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 
 #define MAX_LINES 49
@@ -12,18 +14,37 @@
 #define OUTPUT_LENGTH 81                            // Plus 1 for \n
 
 
+char*   inputBuffer[MAX_LINES];
 
 
+void getUserInput() {
+    memset(inputBuffer, '\0', INPUT_LENGTH);
+    printf("getting user input\n");
 
-int main(int argc, char **argv) {
-    // argc is the number of inputs, char **argv are the string values 
-    if (argc < 2) {
-        printf("You must provide input to process\n");
-        printf("Example usage: ./line_processor Here's some input to process\n");
-        return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
+}
+
+void getFileInput() {
+    printf("getting file input\n");
 }
 
 
+/*
+*   main()
+*   Determines whether user has requested input redirect.
+*   If so, uses helper function to parse the file input 
+*   residing in the stdin buffer. Else, calls helper function
+*   to obtain user input from the terminal.
+*/
+int main(void) {
+    int inputType = fileno(stdin);
+    int fd = isatty(inputType);                                          // File input = 0, Terminal input = 1
 
+    // Obtains input via a file or the terminal
+    if (fd == 0) {
+        getFileInput();
+    } else {
+        getUserInput();
+    }
+
+    return EXIT_SUCCESS;
+}
