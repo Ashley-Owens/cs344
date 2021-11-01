@@ -11,7 +11,7 @@
 
 #define MAX_LINES 49
 #define INPUT_LENGTH 1000
-#define OUTPUT_LENGTH 81                            // Plus 1 for \n
+#define OUTPUT_LENGTH 81                                    // Plus 1 for \n
 
 
 char*   inputBuffer[MAX_LINES];
@@ -25,6 +25,9 @@ void getUserInput() {
 
 void getFileInput() {
     printf("getting file input\n");
+    char buf[1000];
+    fgets(buf, 1000 , stdin);
+    printf("%s\n", buf);
 }
 
 
@@ -35,7 +38,7 @@ void getFileInput() {
 *   residing in the stdin buffer. Else, calls helper function
 *   to obtain user input from the terminal.
 */
-int main(void) {
+int main(int argc, char *argv[]) {
     int inputType = fileno(stdin);
     int fd = isatty(inputType);                                          // File input = 0, Terminal input = 1
 
