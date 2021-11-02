@@ -14,10 +14,17 @@
 #define OUTPUT_LENGTH 81                                    // Plus 1 for \n?
 
 
-char*   inputBuffer[MAX_LINES];
-int     lineCount = 0;                                      // Need to reset this at some point?
+char*  inputBuffer[MAX_LINES];
+int    lineCount = 0;                                      // Need to reset this at some point?
 
 
+// For testing purposes
+void printBuffer() {
+
+    for (int i=0; i < MAX_LINES; i++) {
+        printf("line %d: %s\n", i, inputBuffer[i]);
+    }
+}
 
 /*
 *   getFileInput()
@@ -27,33 +34,51 @@ int     lineCount = 0;                                      // Need to reset thi
 */
 void getFileInput(void) {
 
-    char buffer[10000];
+    char buffer[INPUT_LENGTH];
     
     // Uses fgets to place input into a temporary buffer
     while (fgets(buffer, INPUT_LENGTH, stdin) != NULL) {
 
+        // Stops processing input when STOP received
+        if (strcmp(buffer, "STOP\n") == 0) {
+            break;
+
+        } else {
+            // *** This may need to go elsewhere
+            // Replaces newlines with an empty space char
+            for (int i=0; i < strlen(buffer); i++) {
+                if (strcmp(&buffer[i], "\n") == 0) {
+                    buffer[i] = ' ';
+                }
+            }
+
+            // Copies parsed buffer string into global array
+            inputBuffer[lineCount] = strdup(buffer);
+            lineCount++;
+        }
+    }
+    printBuffer();
+}
+
+/*
+*   getUserInput()
+*   Using scanf(), puts input from stdin into temporary buffer
+*   and copies it to the next index in the global array. 
+*/
+void getUserInput(void) {
+    char buffer[10000];
+    scanf("%s", buffer);
+    
+    // Uses scanf to place input into a temporary buffer
+    while (strcmp(buffer, "STOP\n") > 0) {
+
         // Copies buffer string into global array
         inputBuffer[lineCount] = strdup(buffer);
-        
-        // Testing purposes finds newlines
-        for (int i=0; i < strlen(buffer); i++) {
-            if (strcmp(&buffer[i], "\n") == 0) {
-                printf("newline found\n");
-            }
-        }
         lineCount++;
+        scanf("%s", buffer);
     }
+    printBuffer();
 }
-
-
-void getUserInput() {
-    memset(inputBuffer, '\0', INPUT_LENGTH);
-    printf("getting user input\n");
-
-}
-
-
-
 
 /*
 *   main()
