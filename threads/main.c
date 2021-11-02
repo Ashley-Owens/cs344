@@ -9,12 +9,41 @@
 #include <unistd.h>
 
 
-#define MAX_LINES 49
-#define INPUT_LENGTH 1000
-#define OUTPUT_LENGTH 81                                    // Plus 1 for \n
+#define MAX_LINES     49
+#define INPUT_LENGTH  1000
+#define OUTPUT_LENGTH 81                                    // Plus 1 for \n?
 
 
 char*   inputBuffer[MAX_LINES];
+int     lineCount = 0;                                      // Need to reset this at some point?
+
+
+
+/*
+*   getFileInput()
+*   Using fgets(), obtains input from stdin and copies it to 
+*   the next index in the global array. 
+*
+*/
+void getFileInput(void) {
+
+    char buffer[10000];
+    
+    // Uses fgets to place input into a temporary buffer
+    while (fgets(buffer, INPUT_LENGTH, stdin) != NULL) {
+
+        // Copies buffer string into global array
+        inputBuffer[lineCount] = strdup(buffer);
+        
+        // Testing purposes finds newlines
+        for (int i=0; i < strlen(buffer); i++) {
+            if (strcmp(&buffer[i], "\n") == 0) {
+                printf("newline found\n");
+            }
+        }
+        lineCount++;
+    }
+}
 
 
 void getUserInput() {
@@ -23,12 +52,7 @@ void getUserInput() {
 
 }
 
-void getFileInput() {
-    printf("getting file input\n");
-    char buf[1000];
-    fgets(buf, 1000 , stdin);
-    printf("%s\n", buf);
-}
+
 
 
 /*
@@ -38,7 +62,7 @@ void getFileInput() {
 *   residing in the stdin buffer. Else, calls helper function
 *   to obtain user input from the terminal.
 */
-int main(int argc, char *argv[]) {
+int main(void) {
     int inputType = fileno(stdin);
     int fd = isatty(inputType);                                          // File input = 0, Terminal input = 1
 
