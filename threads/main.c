@@ -11,28 +11,49 @@
 
 #define MAX_LINES     49
 #define INPUT_LENGTH  1000
-#define OUTPUT_LENGTH 81                                    // Plus 1 for \n?
+#define OUTPUT_LENGTH 81                                     // Plus 1 for \n?
 
 
-char*  inputBuffer[MAX_LINES];
-int    lineCount = 0;                                      // Need to reset this at some point?
+char*  inputBuffer[MAX_LINES];                              // Input buffer from file or user
+int    lineCount = 0;                                       // Need to reset this at some point?
+
+char*  swapCharsBuffer[MAX_LINES];                          // Buffer to replace \n and ++
 
 
 // For testing purposes
 void printBuffer() {
 
     for (int i=0; i < MAX_LINES; i++) {
-        printf("line %d: %s\n", i, inputBuffer[i]);
+        printf("line %d: %s\n", i, swapCharsBuffer[i]);
+    }
+}
+
+void replaceLineSeparators(void) {
+    char buffer[INPUT_LENGTH];
+    int i = 0;
+
+    while (inputBuffer[i] != NULL && i < MAX_LINES) {
+        strcpy(buffer, inputBuffer[i]);
+
+        // Replaces newlines with an empty space char
+        for (int i=0; i < strlen(buffer); i++) {
+            if (strcmp(&buffer[i], "\n") == 0) {
+                buffer[i] = ' ';
+            }
+        }
+        swapCharsBuffer[i] = strdup(buffer);
+        // printf("line %d: %s\n", i, swapCharsBuffer[i]);
+        i++;
     }
 }
 
 /*
-*   getFileInput()
+*   getInput()
 *   Using fgets(), obtains input from stdin and copies it to 
 *   the next index in the global array. 
 *
 */
-void getFileInput(void) {
+void getInput(void) {
 
     char buffer[INPUT_LENGTH];
     
@@ -44,40 +65,11 @@ void getFileInput(void) {
             break;
 
         } else {
-            // *** This may need to go elsewhere
-            // Replaces newlines with an empty space char
-            for (int i=0; i < strlen(buffer); i++) {
-                if (strcmp(&buffer[i], "\n") == 0) {
-                    buffer[i] = ' ';
-                }
-            }
-
             // Copies parsed buffer string into global array
             inputBuffer[lineCount] = strdup(buffer);
             lineCount++;
         }
     }
-    printBuffer();
-}
-
-/*
-*   getUserInput()
-*   Using scanf(), puts input from stdin into temporary buffer
-*   and copies it to the next index in the global array. 
-*/
-void getUserInput(void) {
-    char buffer[10000];
-    scanf("%s", buffer);
-    
-    // Uses scanf to place input into a temporary buffer
-    while (strcmp(buffer, "STOP\n") > 0) {
-
-        // Copies buffer string into global array
-        inputBuffer[lineCount] = strdup(buffer);
-        lineCount++;
-        scanf("%s", buffer);
-    }
-    printBuffer();
 }
 
 /*
@@ -88,15 +80,10 @@ void getUserInput(void) {
 *   to obtain user input from the terminal.
 */
 int main(void) {
-    int inputType = fileno(stdin);
-    int fd = isatty(inputType);                                          // File input = 0, Terminal input = 1
-
-    // Obtains input via a file or the terminal
-    if (fd == 0) {
-        getFileInput();
-    } else {
-        getUserInput();
-    }
-
+    
+    getInput();
+    replaceLineSeparators();
+    printBuffer();
     return EXIT_SUCCESS;
+    
 }
