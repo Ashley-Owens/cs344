@@ -28,6 +28,53 @@ void printBuffer() {
     }
 }
 
+/*
+*   freeBuffers()
+*   Iterates through global buffers, freeing each string's
+*   allocated memory from using strdup() earlier in the program.
+*/
+void freeBuffers(void) {
+    for (int i=0; i < MAX_LINES; i++) {
+
+        // Frees each string from earlier strdup() calls
+        if (inputBuffer[i] != NULL) {
+            free(inputBuffer[i]);
+        }  
+        if (swapCharsBuffer[i] != NULL) {
+            free(swapCharsBuffer[i]);
+        }
+    }
+}
+
+void replacePlusSigns(void) {
+    char buffer[INPUT_LENGTH];
+    int i = 0;
+
+    // Iterates through buffer array
+    while (swapCharsBuffer[i] != NULL && i < MAX_LINES) {
+        strcpy(buffer, swapCharsBuffer[i]);                     // Copies the string into buffer
+
+        // Replaces double plus signs with a caret char
+        for (int j=1; j < strlen(buffer); j++) {
+            if ((buffer[j - 1] == '+') && (buffer[j] == '+')) {
+                char* temp = strdup(buffer);                    // Creates a temp copy of buffer string
+                temp[j-1] = '%';                                // Replaces ++ with %c for char insertion
+                temp[j] = 'c';
+                sprintf(buffer, temp, '^');                     // Overwrites buffer with caret in the '++' position
+                free(temp);                                     // Frees the temp variable from calling strdup()
+            }
+        }
+        swapCharsBuffer[i] = strdup(buffer);
+        i++;
+    }
+}
+
+/*
+*   replaceLineSeparators()
+*   Acts as a consumer and producer: iterates through inputBuffer,
+*   replacing each \n with a space char. Writes the altered string
+*   to the swapCharsBuffer for replacePlusSigns() to consume.
+*/
 void replaceLineSeparators(void) {
     char buffer[INPUT_LENGTH];
     int i = 0;
@@ -42,7 +89,6 @@ void replaceLineSeparators(void) {
             }
         }
         swapCharsBuffer[i] = strdup(buffer);
-        // printf("line %d: %s\n", i, swapCharsBuffer[i]);
         i++;
     }
 }
@@ -51,7 +97,6 @@ void replaceLineSeparators(void) {
 *   getInput()
 *   Using fgets(), obtains input from stdin and copies it to 
 *   the next index in the global array. 
-*
 */
 void getInput(void) {
 
@@ -83,7 +128,9 @@ int main(void) {
     
     getInput();
     replaceLineSeparators();
+    replacePlusSigns();
     printBuffer();
+    freeBuffers();
     return EXIT_SUCCESS;
-    
+
 }
