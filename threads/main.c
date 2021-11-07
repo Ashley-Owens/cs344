@@ -3,6 +3,7 @@
 // Project 4: Multi-threaded Producer Consumer Pipeline
 
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,20 +12,22 @@
 
 #define MAX_LINES     49
 #define INPUT_LENGTH  1000
-#define OUTPUT_LENGTH 81                                     // Plus 1 for \n?
-
+#define OUTPUT_LENGTH 80                                    
 
 char*  inputBuffer[MAX_LINES];                              // Input buffer from file or user
 int    lineCount = 0;                                       // Need to reset this at some point?
 
 char*  swapCharsBuffer[MAX_LINES];                          // Buffer to replace \n and ++
+char*  outputBuffer[MAX_LINES];                             // Buffer to hold output
+int    outCharCount = 0;
+bool   outputReady = false;
 
 
 // For testing purposes
 void printBuffer() {
 
     for (int i=0; i < MAX_LINES; i++) {
-        printf("line %d: %s\n", i, swapCharsBuffer[i]);
+        printf("line %d: %s\n", i, outputBuffer[i]);
     }
 }
 
@@ -43,6 +46,54 @@ void freeBuffers(void) {
         if (swapCharsBuffer[i] != NULL) {
             free(swapCharsBuffer[i]);
         }
+        if (outputBuffer[i] != NULL) {
+            free(outputBuffer[i]);
+        }
+    }
+}
+
+void printOutput(void) {
+    char buffer[INPUT_LENGTH];
+    int  buffIndex = 0;
+    int  placeholder = 0;
+    int  i = 0;
+    int  j = 0;
+
+    while (outputReady && outputBuffer[i] != NULL && i < MAX_LINES) {
+        strcpy(buffer, outputBuffer[i]);                        // Copies the string into buffer
+        buffIndex = strlen(buffer) -1;                          // Sets the index to the length of the string
+
+        if (buffIndex < OUTPUT_LENGTH) {
+            outputReady = false;
+            break;
+
+        } else {
+            // printf("string length is: %d\n", buffIndex);
+            // while (j < strlen(buffer)) {
+            //     printf("%c", buffer[j]);
+            //     j++;
+    
+            //     if (j % OUTPUT_LENGTH == 0) {
+            //         printf("\n");
+                    
+            //     }
+            // }
+           
+
+            while (j < strlen(buffer) && buffIndex >= OUTPUT_LENGTH) {
+                printf("%c", buffer[j]);
+                j++;
+                buffIndex--;
+                if (j % OUTPUT_LENGTH == 0) {
+                    printf("\n");
+                    // printf("string length is: %d\n", buffIndex);
+                }
+            }
+            placeholder += j;
+            
+        }
+        i++;
+        j = 0;
     }
 }
 
@@ -63,8 +114,11 @@ void replacePlusSigns(void) {
                 sprintf(buffer, temp, '^');                     // Overwrites buffer with caret in the '++' position
                 free(temp);                                     // Frees the temp variable from calling strdup()
             }
+            if (j == OUTPUT_LENGTH) {
+                outputReady = true;
+            }
         }
-        swapCharsBuffer[i] = strdup(buffer);
+        outputBuffer[i] = strdup(buffer);
         i++;
     }
 }
@@ -129,7 +183,8 @@ int main(void) {
     getInput();
     replaceLineSeparators();
     replacePlusSigns();
-    printBuffer();
+    // printBuffer();
+    printOutput();
     freeBuffers();
     return EXIT_SUCCESS;
 
