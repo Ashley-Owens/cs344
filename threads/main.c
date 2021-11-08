@@ -42,12 +42,6 @@ pthread_mutex_t mutex_3 = PTHREAD_MUTEX_INITIALIZER;        // Initialize the mu
 pthread_cond_t full_3 = PTHREAD_COND_INITIALIZER;           // Initialize the condition variable for buffer 3
 
 
-// bool   inputReady = false;
-// bool   outputReady = false;
-
-
-
-
 // For testing purposes
 void printBuffer() {
 
@@ -90,9 +84,10 @@ void freeBuffers(void) {
 
 /*
 *   replacePlusSigns()
-*   Acts as a consumer and producer: iterates through swapCharsBuffer,
-*   replacing each ++ with a ^ char. Writes updated chars to the 
-*   outputBuffer for printOutputBuffer() to consume.
+*   Acts as a consumer and producer: gets string from swapCharsBuffer,
+*   replaces each ++ with a ^ char. Writes updated string to the 
+*   outputBuffer for outputThread() to consume.
+*   Code modified from Producer/Consumer example: https://bit.ly/3BW2423
 */
 void replacePlusSigns(void) {
     char buffer[INPUT_LENGTH];
@@ -127,9 +122,9 @@ void replacePlusSigns(void) {
 
 /*
 *   replaceLineSeparators()
-*   Acts as a consumer and producer: iterates through inputBuffer,
+*   Acts as a consumer and producer: gets next string from inputBuffer,
 *   replacing each \n with a space char (except for end marker newline). 
-*   Writes string to the swapCharsBuffer for replacePlusSigns() to consume.
+*   Writes string to the swapCharsBuffer for signThread() to consume.
 *   Code modified from Producer/Consumer example: https://bit.ly/3BW2423
 *
 *   Return: 0 to end, else 1 to continue consuming and producing
@@ -216,9 +211,10 @@ void *signThread(void *args) {
 
 /*
 *   separatorThread()
-*   Uses helper function to obtain input from stdin, adding
-*   it to a shared global buffer array. When end marker is
-*   received, returns Null to exit the thread.
+*   Uses helper function to obtain string from inputBuffer,
+*   removes newline chars and adds string to a swapCharsBuffer
+*   global buffer array. When end marker is received, returns
+*   Null to exit the thread.
 */
 void *separatorThread(void *args) {
     int res = 1;
