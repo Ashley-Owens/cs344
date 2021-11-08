@@ -52,7 +52,7 @@ pthread_cond_t full_3 = PTHREAD_COND_INITIALIZER;           // Initialize the co
 void printBuffer() {
 
     for (int i=0; i < MAX_LINES; i++) {
-        printf("line %d: %s\n", i, inputBuffer[i]);
+        printf("line %d: %s\n", i, swapCharsBuffer[i]);
     }
 }
 
@@ -128,25 +128,53 @@ void replacePlusSigns(void) {
 /*
 *   replaceLineSeparators()
 *   Acts as a consumer and producer: iterates through inputBuffer,
-*   replacing each \n with a space char. Writes the altered string
-*   to the swapCharsBuffer for replacePlusSigns() to consume.
+*   replacing each \n with a space char (except for end marker newline). 
+*   Writes string to the swapCharsBuffer for replacePlusSigns() to consume.
+*   Code modified from Producer/Consumer example: https://bit.ly/3BW2423
+*
+*   Return: 0 to end, else 1 to continue consuming and producing
 */
-void replaceLineSeparators(void) {
+int replaceLineSeparators(void) {
     char buffer[INPUT_LENGTH];
-    int i = 0;
+    bool end = false;
 
-    while (inputBuffer[i] != NULL && i < MAX_LINES) {
-        strcpy(buffer, inputBuffer[i]);
+    // Lock mutex_1 before checking the buffer for data
+    pthread_mutex_lock(&mutex_1);               
+    while (count_1 == 0) {
+        // Buffer is empty. Wait for the producer to signal that the buffer has data
+        pthread_cond_wait(&full_1, &mutex_1);
+    }
 
-        // Replaces newlines with an empty space char
+    // Copy data into temp string
+    strcpy(buffer, inputBuffer[con_idx_1]);
+    con_idx_1++;                                            // Increment consumer index for next str
+    count_1--;                                              // Decrement count_1                                                  
+    pthread_mutex_unlock(&mutex_1);                         // Unlock mutex_1
+
+    if (strcmp(buffer, END_MARKER) == 0) {
+        end = true;
+    }
+
+    // If string is not the end marker, replaces newlines with an empty space char
+    if (!end) {
         for (int i=0; i < strlen(buffer); i++) {
             if (strcmp(&buffer[i], "\n") == 0) {
                 buffer[i] = ' ';
             }
         }
-        swapCharsBuffer[i] = strdup(buffer);
-        i++;
     }
+
+    // Lock mutex_2 in order to place string in the next buffer
+    pthread_mutex_lock(&mutex_2);
+    swapCharsBuffer[prod_idx_2] = strdup(buffer);
+    count_2++;
+    prod_idx_2++;
+    pthread_cond_signal(&full_2);                           // Signal that 2nd buffer is no longer empty
+    pthread_mutex_unlock(&mutex_2);
+    if (end) {
+        return 0;
+    }
+    return 1;
 }
 
 /*
@@ -171,8 +199,8 @@ int getInput(void) {
     pthread_cond_signal(&full_1);                               // Signal that buffer is no longer empty
     pthread_mutex_unlock(&mutex_1);                             // Unlock the mutex
 
-    // Stop processing input when STOP\n marker received
-    if (strcmp(buffer, END_MARKER) == 0 || count_1 >= MAX_LINES) {
+    // Stop processing input when marker received
+    if (strcmp(buffer, END_MARKER) == 0) {
         return 0;
     } 
     return 1;
@@ -186,7 +214,15 @@ void *signThread(void *args) {
     return NULL;
 }
 
+/*
+*   separatorThread()
+*   Uses helper function to obtain input from stdin, adding
+*   it to a shared global buffer array. When end marker is
+*   received, returns Null to exit the thread.
+*/
 void *separatorThread(void *args) {
+    int res = 1;
+    while (res) { res = replaceLineSeparators(); }
     return NULL;
 }
 
@@ -213,7 +249,6 @@ int main(void) {
     pthread_t inputTid, separatorTid, signTid, outputTid;
 
     // Create threads
-    //           id num, flag, function, func argument
     pthread_create(&inputTid, NULL, inputThread, NULL);
     pthread_create(&separatorTid, NULL, separatorThread, NULL);
     pthread_create(&signTid, NULL, signThread, NULL);
@@ -225,13 +260,8 @@ int main(void) {
     pthread_join(signTid, NULL);
     pthread_join(outputTid, NULL);
     
-
-    // getInput();
-    // replaceLineSeparators();
-    // replacePlusSigns();
-    // printOutputBuffer();
-    // freeBuffers();
     printBuffer();
+    freeBuffers();
+    
     return EXIT_SUCCESS;
-
 }
