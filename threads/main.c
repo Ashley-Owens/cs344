@@ -15,21 +15,20 @@
 #define OUTPUT_LENGTH 80                                    
 
 char*  inputBuffer[MAX_LINES];                              // Input buffer from file or user
-int    lineCount = 0;                                       // Need to reset this at some point?
+                                    
 
 char*  swapCharsBuffer[MAX_LINES];                          // Buffer to replace \n and ++
-char*  outputBuffer[MAX_LINES];                             // Buffer to hold output
-int    outCharCount = 0;
+char   outputBuffer[OUTPUT_LENGTH];                         // Buffer to hold output
 bool   outputReady = false;
 
 
 // For testing purposes
-void printBuffer() {
+// void printBuffer() {
 
-    for (int i=0; i < MAX_LINES; i++) {
-        printf("line %d: %s\n", i, outputBuffer[i]);
-    }
-}
+//     for (int i=0; i < MAX_LINES; i++) {
+//         printf("line %d: %s\n", i, outputBuffer[i]);
+//     }
+// }
 
 /*
 *   freeBuffers()
@@ -46,64 +45,36 @@ void freeBuffers(void) {
         if (swapCharsBuffer[i] != NULL) {
             free(swapCharsBuffer[i]);
         }
-        if (outputBuffer[i] != NULL) {
-            free(outputBuffer[i]);
-        }
     }
 }
 
-void printOutput(void) {
-    char buffer[INPUT_LENGTH];
-    int  buffIndex = 0;
-    int  placeholder = 0;
-    int  i = 0;
-    int  j = 0;
+/*
+*   printOutputBuffer()
+*   Acts as a consumer when outputBuffer string is filled, prints
+*   the string, resets the buffer, and updates the boolean flag.
+*/
+void printOutputBuffer(void) {
 
-    while (outputReady && outputBuffer[i] != NULL && i < MAX_LINES) {
-        strcpy(buffer, outputBuffer[i]);                        // Copies the string into buffer
-        buffIndex = strlen(buffer) -1;                          // Sets the index to the length of the string
-
-        if (buffIndex < OUTPUT_LENGTH) {
-            outputReady = false;
-            break;
-
-        } else {
-            // printf("string length is: %d\n", buffIndex);
-            // while (j < strlen(buffer)) {
-            //     printf("%c", buffer[j]);
-            //     j++;
-    
-            //     if (j % OUTPUT_LENGTH == 0) {
-            //         printf("\n");
-                    
-            //     }
-            // }
-           
-
-            while (j < strlen(buffer) && buffIndex >= OUTPUT_LENGTH) {
-                printf("%c", buffer[j]);
-                j++;
-                buffIndex--;
-                if (j % OUTPUT_LENGTH == 0) {
-                    printf("\n");
-                    // printf("string length is: %d\n", buffIndex);
-                }
-            }
-            placeholder += j;
-            
-        }
-        i++;
-        j = 0;
+    if (outputReady && strlen(outputBuffer) == OUTPUT_LENGTH) {
+        printf("%s\n", outputBuffer);
+        memset(outputBuffer, 0, sizeof(outputBuffer));
+        outputReady = false;
     }
 }
 
+/*
+*   replacePlusSigns()
+*   Acts as a consumer and producer: iterates through swapCharsBuffer,
+*   replacing each ++ with a ^ char. Writes updated chars to the 
+*   outputBuffer for printOutputBuffer() to consume.
+*/
 void replacePlusSigns(void) {
     char buffer[INPUT_LENGTH];
     int i = 0;
 
-    // Iterates through buffer array
+    // Iterates through swapCharsBuffer array
     while (swapCharsBuffer[i] != NULL && i < MAX_LINES) {
-        strcpy(buffer, swapCharsBuffer[i]);                     // Copies the string into buffer
+        strcpy(buffer, swapCharsBuffer[i]);                     // Copies each string into temp buffer
 
         // Replaces double plus signs with a caret char
         for (int j=1; j < strlen(buffer); j++) {
@@ -114,11 +85,16 @@ void replacePlusSigns(void) {
                 sprintf(buffer, temp, '^');                     // Overwrites buffer with caret in the '++' position
                 free(temp);                                     // Frees the temp variable from calling strdup()
             }
-            if (j == OUTPUT_LENGTH) {
+        }
+
+        // Appends 80 chars to output buffer
+        for (int k=0; k < INPUT_LENGTH; k++) {
+            if (!outputReady && strlen(outputBuffer) < OUTPUT_LENGTH) {
+                strncat(outputBuffer, &buffer[k], 1);
+            } else {
                 outputReady = true;
             }
         }
-        outputBuffer[i] = strdup(buffer);
         i++;
     }
 }
@@ -153,8 +129,8 @@ void replaceLineSeparators(void) {
 *   the next index in the global array. 
 */
 void getInput(void) {
-
     char buffer[INPUT_LENGTH];
+    int  inLineCount = 0;
     
     // Uses fgets to place input into a temporary buffer
     while (fgets(buffer, INPUT_LENGTH, stdin) != NULL) {
@@ -165,8 +141,8 @@ void getInput(void) {
 
         } else {
             // Copies parsed buffer string into global array
-            inputBuffer[lineCount] = strdup(buffer);
-            lineCount++;
+            inputBuffer[inLineCount] = strdup(buffer);
+            inLineCount++;
         }
     }
 }
@@ -183,8 +159,7 @@ int main(void) {
     getInput();
     replaceLineSeparators();
     replacePlusSigns();
-    // printBuffer();
-    printOutput();
+    printOutputBuffer();
     freeBuffers();
     return EXIT_SUCCESS;
 
