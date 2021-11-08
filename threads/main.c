@@ -34,7 +34,7 @@ pthread_mutex_t mutex_2 = PTHREAD_MUTEX_INITIALIZER;        // Initialize the mu
 pthread_cond_t full_2 = PTHREAD_COND_INITIALIZER;           // Initialize the condition variable for buffer 2    
 
 // Buffer 3: shared resource between sign and output threads
-char  outputBuffer[OUTPUT_LENGTH];                          // Buffer to hold output
+char* outputBuffer[MAX_LINES];                              // Buffer to hold output
 int   count_3 = 0;                                          // Number of items in the buffer
 int   prod_idx_3 = 0;                                       // Index where the sign thread will put the next item
 int   con_idx_3 = 0;                                        // Index where the output thread will access the next item
@@ -46,7 +46,7 @@ pthread_cond_t full_3 = PTHREAD_COND_INITIALIZER;           // Initialize the co
 void printBuffer() {
 
     for (int i=0; i < MAX_LINES; i++) {
-        printf("line %d: %s\n", i, swapCharsBuffer[i]);
+        printf("line %d: %s\n", i, outputBuffer[i]);
     }
 }
 
@@ -80,6 +80,14 @@ void freeBuffers(void) {
 //         memset(outputBuffer, 0, sizeof(outputBuffer));
 //         outputReady = false;
 //     }
+    // Appends 80 chars to output buffer
+        // for (int k=0; k < INPUT_LENGTH; k++) {
+        //     if (!outputReady && strlen(outputBuffer) < OUTPUT_LENGTH) {
+        //         strncat(outputBuffer, &buffer[k], 1);
+        //     } else {
+        //         outputReady = true;
+        //     }
+        // }
 // }
 
 /*
@@ -88,37 +96,51 @@ void freeBuffers(void) {
 *   replaces each ++ with a ^ char. Writes updated string to the 
 *   outputBuffer for outputThread() to consume.
 *   Code modified from Producer/Consumer example: https://bit.ly/3BW2423
+*
+*   Return: 0 to end, else 1 to continue consuming and producing
 */
-void replacePlusSigns(void) {
+int replacePlusSigns(void) {
     char buffer[INPUT_LENGTH];
-    int i = 0;
 
-    // Iterates through swapCharsBuffer array
-    while (swapCharsBuffer[i] != NULL && i < MAX_LINES) {
-        strcpy(buffer, swapCharsBuffer[i]);                     // Copies each string into temp buffer
+    // Lock mutex_2 in order to retreive string from the swapCharsBuffer
+    pthread_mutex_lock(&mutex_2);
 
-        // Replaces double plus signs with a caret char
-        for (int j=1; j < strlen(buffer); j++) {
-            if ((buffer[j - 1] == '+') && (buffer[j] == '+')) {
-                char* temp = strdup(buffer);                    // Creates a temp copy of buffer string
-                temp[j-1] = '%';                                // Replaces ++ with %c for char insertion
-                temp[j] = 'c';
-                sprintf(buffer, temp, '^');                     // Overwrites buffer with caret in the '++' position
-                free(temp);                                     // Frees the temp variable from calling strdup()
-            }
+    // Buffer is empty. Wait for the producer to signal that the buffer has data
+    while (count_2 == 0) {
+        pthread_cond_wait(&full_2, &mutex_2);
+    }   
+    
+    // Copy data into temp string
+    strcpy(buffer, swapCharsBuffer[con_idx_2]);
+    con_idx_2++;                                                // Increment consumer index for next str
+    count_2--;                                                  // Decrement count_2                                                  
+    pthread_mutex_unlock(&mutex_2);                             // Unlock mutex_2              
+
+    // Replaces double plus signs with a caret char in local string
+    for (int j=1; j < strlen(buffer); j++) {
+        if ((buffer[j - 1] == '+') && (buffer[j] == '+')) {
+            char* temp = strdup(buffer);                        // Creates a temp copy of local string
+            temp[j-1] = '%';                                    // Replaces ++ with %c for char insertion
+            temp[j] = 'c';
+            sprintf(buffer, temp, '^');                         // Overwrites buffer with caret in the '++' position
+            free(temp);                                         // Frees the temp variable from calling strdup()
         }
-
-        // Appends 80 chars to output buffer
-        // for (int k=0; k < INPUT_LENGTH; k++) {
-        //     if (!outputReady && strlen(outputBuffer) < OUTPUT_LENGTH) {
-        //         strncat(outputBuffer, &buffer[k], 1);
-        //     } else {
-        //         outputReady = true;
-        //     }
-        // }
-        i++;
     }
+
+    // Lock mutex_3 in order to place string in the outputBuffer
+    pthread_mutex_lock(&mutex_3);
+    outputBuffer[prod_idx_3] = strdup(buffer);
+    count_3++;
+    prod_idx_3++;
+    pthread_cond_signal(&full_3);                               // Signal that outputBuffer is no longer empty
+    pthread_mutex_unlock(&mutex_3);
+
+    if (strcmp(buffer, END_MARKER) == 0) {
+        return 0;
+    }
+    return 1;
 }
+
 
 /*
 *   replaceLineSeparators()
@@ -142,9 +164,9 @@ int replaceLineSeparators(void) {
 
     // Copy data into temp string
     strcpy(buffer, inputBuffer[con_idx_1]);
-    con_idx_1++;                                            // Increment consumer index for next str
-    count_1--;                                              // Decrement count_1                                                  
-    pthread_mutex_unlock(&mutex_1);                         // Unlock mutex_1
+    con_idx_1++;                                                // Increment consumer index for next str
+    count_1--;                                                  // Decrement count_1                                                  
+    pthread_mutex_unlock(&mutex_1);                             // Unlock mutex_1
 
     if (strcmp(buffer, END_MARKER) == 0) {
         end = true;
@@ -164,7 +186,7 @@ int replaceLineSeparators(void) {
     swapCharsBuffer[prod_idx_2] = strdup(buffer);
     count_2++;
     prod_idx_2++;
-    pthread_cond_signal(&full_2);                           // Signal that 2nd buffer is no longer empty
+    pthread_cond_signal(&full_2);                               // Signal that 2nd buffer is no longer empty
     pthread_mutex_unlock(&mutex_2);
     if (end) {
         return 0;
@@ -205,7 +227,16 @@ void *outputThread(void *args) {
     return NULL;
 }
 
+/*
+*   signThread()
+*   Uses helper function to obtain string from swapCharsBuffer,
+*   replaces ++ with ^, and adds string to the outputBuffer
+*   global array. When end marker is received, returns NULL
+*   to exit the thread.
+*/
 void *signThread(void *args) {
+    int res = 1;
+    while (res) { res = replacePlusSigns(); }
     return NULL;
 }
 
