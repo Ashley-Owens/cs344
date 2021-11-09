@@ -40,15 +40,8 @@ int   prod_idx_3 = 0;                                       // Index where the s
 int   con_idx_3 = 0;                                        // Index where the output thread will access the next item
 pthread_mutex_t mutex_3 = PTHREAD_MUTEX_INITIALIZER;        // Initialize the mutex for buffer 3
 pthread_cond_t full_3 = PTHREAD_COND_INITIALIZER;           // Initialize the condition variable for buffer 3
+char  output[OUTPUT_LENGTH];                                // Output string
 
-
-// For testing purposes
-void printBuffer() {
-
-    for (int i=0; i < MAX_LINES; i++) {
-        printf("line %d: %s\n", i, outputBuffer[i]);
-    }
-}
 
 /*
 *   freeBuffers()
@@ -65,30 +58,56 @@ void freeBuffers(void) {
         if (swapCharsBuffer[i] != NULL) {
             free(swapCharsBuffer[i]);
         }
+        if (outputBuffer[i] != NULL) {
+            free(outputBuffer[i]);
+        }
     }
 }
 
 /*
 *   printOutputBuffer()
 *   Acts as a consumer when outputBuffer string is filled, prints
-*   the string, resets the buffer, and updates the boolean flag.
+*   the string, resets the string, and updates the boolean flag.
 */
-// void printOutputBuffer(void) {
+int printOutputBuffer(void) {
+    char buffer[INPUT_LENGTH];
+    bool end = false;
+    int  j = 0;
 
-//     if (outputReady && strlen(outputBuffer) == OUTPUT_LENGTH) {
-//         printf("%s\n", outputBuffer);
-//         memset(outputBuffer, 0, sizeof(outputBuffer));
-//         outputReady = false;
-//     }
-    // Appends 80 chars to output buffer
-        // for (int k=0; k < INPUT_LENGTH; k++) {
-        //     if (!outputReady && strlen(outputBuffer) < OUTPUT_LENGTH) {
-        //         strncat(outputBuffer, &buffer[k], 1);
-        //     } else {
-        //         outputReady = true;
-        //     }
-        // }
-// }
+    pthread_mutex_lock(&mutex_3);                               // Lock mutex_3
+
+    // Buffer is empty. Wait for the producer to signal that the buffer has data
+    while (count_3 == 0) {
+        pthread_cond_wait(&full_3, &mutex_3);
+    }
+
+    strcpy(buffer, outputBuffer[con_idx_3]);                    // Copy data to local buffer
+    con_idx_3++;                                                // Increment consumer index for next str
+    count_3--;                                                  // Decrement count_3                                        
+    pthread_mutex_unlock(&mutex_3);                             // Unlock mutex_3           
+
+    if (strcmp(buffer, END_MARKER) == 0) {
+        end = true;
+    }
+
+    // Copies local buffer to global string output except for end marker
+    if (!end) {
+        for (int i=0; i < strlen(buffer); i++) {
+
+            // Prints prepared string
+            if (strlen(output) == OUTPUT_LENGTH) {
+                printf("%s\n", output);
+                memset(output, 0, sizeof(output));
+                j = 0;
+            }
+            // Concatenates char to output string
+            strncat(&output[j], &buffer[i], 1);
+            j++;
+        }
+    }
+    if (end) return 0;
+    return 1;
+}
 
 /*
 *   replacePlusSigns()
@@ -135,9 +154,7 @@ int replacePlusSigns(void) {
     pthread_cond_signal(&full_3);                               // Signal that outputBuffer is no longer empty
     pthread_mutex_unlock(&mutex_3);
 
-    if (strcmp(buffer, END_MARKER) == 0) {
-        return 0;
-    }
+    if (strcmp(buffer, END_MARKER) == 0) return 0;
     return 1;
 }
 
@@ -188,9 +205,7 @@ int replaceLineSeparators(void) {
     prod_idx_2++;
     pthread_cond_signal(&full_2);                               // Signal that 2nd buffer is no longer empty
     pthread_mutex_unlock(&mutex_2);
-    if (end) {
-        return 0;
-    }
+    if (end) return 0;
     return 1;
 }
 
@@ -217,13 +232,13 @@ int getInput(void) {
     pthread_mutex_unlock(&mutex_1);                             // Unlock the mutex
 
     // Stop processing input when marker received
-    if (strcmp(buffer, END_MARKER) == 0) {
-        return 0;
-    } 
+    if (strcmp(buffer, END_MARKER) == 0) return 0;
     return 1;
 }
 
 void *outputThread(void *args) {
+    int res = 1;
+    while (res) { res = printOutputBuffer(); }
     return NULL;
 }
 
@@ -287,7 +302,7 @@ int main(void) {
     pthread_join(signTid, NULL);
     pthread_join(outputTid, NULL);
     
-    printBuffer();
+    // printBuffer();
     freeBuffers();
     
     return EXIT_SUCCESS;
