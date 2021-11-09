@@ -1,6 +1,8 @@
 // Name: Ashley Owens
-// Date: 11/18/2021
+// Date: 11/9/2021
 // Project 4: Multi-threaded Producer Consumer Pipeline
+// Uses threads, mutual exclusion and condition variables
+// to process input and print 80 character length strings
 
 
 #include <pthread.h>
@@ -18,7 +20,7 @@
 
 
 // Buffer 1: shared resource between input and separator threads
-char* inputBuffer[MAX_LINES];
+char* inputBuffer[MAX_LINES];                               // Buffer to store pointers to input strings
 int   count_1 = 0;                                          // Number of items in the buffer
 int   prod_idx_1 = 0;                                       // Index where the input thread will put the next item
 int   con_idx_1 = 0;                                        // Index where the separator thread will access the next item
@@ -66,8 +68,12 @@ void freeBuffers(void) {
 
 /*
 *   printOutputBuffer()
-*   Acts as a consumer when outputBuffer string is filled, prints
-*   the string, resets the string, and updates the boolean flag.
+*   Acts as a consumer when outputBuffer is full, saving each string
+*   locally. Iterates through local string concatenating 80 chars to 
+*   global output variable. If 80 chars present, prints the string.
+*   Code modified from Producer/Consumer example: https://bit.ly/3BW2423
+*
+*   Returns: 0 to end, else 1 to continue consuming
 */
 int printOutputBuffer(void) {
     char buffer[INPUT_LENGTH];
@@ -90,10 +96,9 @@ int printOutputBuffer(void) {
         end = true;
     }
 
-    // Copies local buffer to global string output except for end marker
+    // Copies local buffer to global string output (except for end marker)
     if (!end) {
         for (int i=0; i < strlen(buffer); i++) {
-
             // Prints prepared string
             if (strlen(output) == OUTPUT_LENGTH) {
                 printf("%s\n", output);
@@ -158,7 +163,6 @@ int replacePlusSigns(void) {
     return 1;
 }
 
-
 /*
 *   replaceLineSeparators()
 *   Acts as a consumer and producer: gets next string from inputBuffer,
@@ -213,8 +217,8 @@ int replaceLineSeparators(void) {
 *   getInput()
 *   Using fgets(), obtains input from stdin in a temporary buffer.
 *   Locks the mutex prior to accessing global buffer, then copies
-*   the obtained string into the global buffer array. Finally, updates
-*   signal to next thread that buffer isn't empty and unlocks the mutex.
+*   the obtained string into the global buffer array. Updates signal
+*   to next thread that buffer isn't empty and unlocks the mutex.
 *   Code modified from Producer/Consumer example: https://bit.ly/3BW2423
 * 
 *   Returns: 0 to end, else 1 to continue receiving input
@@ -236,6 +240,13 @@ int getInput(void) {
     return 1;
 }
 
+/*
+*   outputThread()
+*   Uses helper function to obtain string from outputBuffer,
+*   printing 80 char length strings to terminal or file redirect.
+*
+*   Returns: NULL to exit
+*/
 void *outputThread(void *args) {
     int res = 1;
     while (res) { res = printOutputBuffer(); }
@@ -246,8 +257,9 @@ void *outputThread(void *args) {
 *   signThread()
 *   Uses helper function to obtain string from swapCharsBuffer,
 *   replaces ++ with ^, and adds string to the outputBuffer
-*   global array. When end marker is received, returns NULL
-*   to exit the thread.
+*   global array. 
+*
+*   Returns: NULL to exit
 */
 void *signThread(void *args) {
     int res = 1;
@@ -259,8 +271,9 @@ void *signThread(void *args) {
 *   separatorThread()
 *   Uses helper function to obtain string from inputBuffer,
 *   removes newline chars and adds string to a swapCharsBuffer
-*   global buffer array. When end marker is received, returns
-*   Null to exit the thread.
+*   global buffer array.
+*
+*   Returns: NULL to exit
 */
 void *separatorThread(void *args) {
     int res = 1;
@@ -271,8 +284,9 @@ void *separatorThread(void *args) {
 /*
 *   inputThread()
 *   Uses helper function to obtain input from stdin, adding
-*   it to a shared global buffer array. When end marker is
-*   received, returns Null to exit the thread.
+*   it to a shared global buffer array.
+*
+*   Returns: NULL to exit
 */
 void *inputThread(void *args) {
     int res = 1;
@@ -282,10 +296,11 @@ void *inputThread(void *args) {
 
 /*
 *   main()
-*   Determines whether user has requested input redirect.
-*   If so, uses helper function to parse the file input 
-*   residing in the stdin buffer. Else, calls helper function
-*   to obtain user input from the terminal.
+*   Initializes four threads and joins them to run the 
+*   program. Code modified from Producer/Consumer example: 
+*   https://bit.ly/3BW2423
+*
+*   Returns: exit success
 */
 int main(void) {
     pthread_t inputTid, separatorTid, signTid, outputTid;
@@ -302,8 +317,7 @@ int main(void) {
     pthread_join(signTid, NULL);
     pthread_join(outputTid, NULL);
     
-    // printBuffer();
+    // Free buffer strings
     freeBuffers();
-    
     return EXIT_SUCCESS;
 }
