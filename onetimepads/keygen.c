@@ -11,7 +11,7 @@
 #include <string.h>
 #include <time.h>
 
-# define LENGTH 27
+#define LENGTH 27
 
 
 /*
