@@ -14,3 +14,11 @@ Note: you may need to set execute permissions on the script `chmod +x ./p5testsc
 
 5. You can also run the program by redirecting testing output such as:
     `./p5testscript <port number> <port number> > mytestresults 2>&1`         
+
+
+start the individual server like this:
+./enc_server 49123
+
+client needs to start like this:
+enc_client plaintext key port
+where plaintext is a filename
