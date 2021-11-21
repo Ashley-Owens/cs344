@@ -53,6 +53,11 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+    if (atoi(argv[1]) < 0) {
+		fprintf(stderr, "Please enter a valid key length\n");
+		return EXIT_FAILURE;
+	}
+
     generateKey(atoi(argv[1]));
     return EXIT_SUCCESS;
 }
