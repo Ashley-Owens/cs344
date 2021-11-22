@@ -30,9 +30,7 @@ void error(const char *msg) {
 } 
 
 // Set up the address struct
-void setupAddressStruct(struct sockaddr_in* address, 
-                        int portNumber, 
-                        char* hostname) {
+void setupAddressStruct(struct sockaddr_in* address, int portNumber) {
  
     // Clear out the address struct
     memset((char*) address, '\0', sizeof(*address)); 
@@ -118,7 +116,7 @@ bool isValid(char* text, char* key) {
 }
 
 int main(int argc, char *argv[]) {
-    int socketFD, portNumber, charsWritten, charsRead;
+    int socketFD, option, charsWritten, charsRead;
     struct sockaddr_in serverAddress;
     char buffer[256];
 
@@ -132,7 +130,7 @@ int main(int argc, char *argv[]) {
     char *text = getFileText(argv[1]);
     char *key = getFileText(argv[2]);
 
-    // Helper function to validate file input
+    // Helper function to validate file input lengths and characters
     bool  valid = isValid(text, key);
     if (valid == false) {
         exit(EXIT_FAILURE);
@@ -144,8 +142,11 @@ int main(int argc, char *argv[]) {
         error("enc_client error: ERROR opening socket");
     }
 
+    // Allow the port to be reused
+    setsockopt(socketFD, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
+
     // Set up the server address struct
-    setupAddressStruct(&serverAddress, atoi(argv[2]), argv[1]);
+    setupAddressStruct(&serverAddress, atoi(argv[3]));
 
     // Connect to server
     if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
@@ -180,8 +181,8 @@ int main(int argc, char *argv[]) {
     // }
     // printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
 
-    // // Close the socket
-    // close(socketFD);
+    // Close the socket
+    close(socketFD);
 
     // Frees heap memory
     free(text);
