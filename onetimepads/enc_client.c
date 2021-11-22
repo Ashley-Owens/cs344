@@ -13,6 +13,8 @@
 #include <sys/socket.h> // send(),recv()
 #include <unistd.h>
 
+#define LENGTH 12000
+
 /**
 * Client code
 * 1. Create a socket and connect to the server specified in the command arugments.
@@ -50,60 +52,95 @@ void setupAddressStruct(struct sockaddr_in* address,
             hostInfo->h_length);
 }
 
+/*
+*   getFileText()
+*   Opens a file in the current working directory. Allocates heap space
+*   and stores the file's text to the heap. Assumes the file only has
+*   one line of input of variable length.
+*
+*   args:   fileName - name of the file to open  
+*   return: pointer to heap memory containing file text
+*/
+char* getFileText(char* fileName) {
+    char *text;
+    size_t size = 64;                               // Number of bytes to allocate
+    FILE *fd = fopen(fileName, "r");
+
+    // Error handling: fileName not in working directory
+    if (fd == NULL) {
+        fprintf(stderr, "Error: encrypt client cannot open %s\n", fileName);
+    }
+
+    // Allocates space on the heap for plain text data
+    text = (char*)malloc(size * sizeof(char));
+    if (text == NULL) {
+        fprintf(stderr, "Error: encrypt client heap space full\n");
+    }
+
+    // Stores data on the heap
+    getline(&text, &size, fd);
+    return text;
+}
+
 int main(int argc, char *argv[]) {
     int socketFD, portNumber, charsWritten, charsRead;
     struct sockaddr_in serverAddress;
     char buffer[256];
-    
+
     // Check usage & args
-    if (argc < 3) { 
-        fprintf(stderr,"USAGE: %s plaintextfile key port\n", argv[0]); 
+    if (argc != 4) { 
+        fprintf(stderr,"USAGE: %s plaintextfile keyfile port\n", argv[0]); 
         exit(0); 
     } 
 
+    // Helper function to save file text into char array
+    char *text = getFileText(argv[1]);
+    char *key = getFileText(argv[2]);
+
+
     // Create a socket
-    socketFD = socket(AF_INET, SOCK_STREAM, 0); 
-    if (socketFD < 0) {
-        error("CLIENT: ERROR opening socket");
-    }
+    // socketFD = socket(AF_INET, SOCK_STREAM, 0); 
+    // if (socketFD < 0) {
+    //     error("CLIENT: ERROR opening socket");
+    // }
 
-    // Set up the server address struct
-    setupAddressStruct(&serverAddress, atoi(argv[2]), argv[1]);
+    // // Set up the server address struct
+    // setupAddressStruct(&serverAddress, atoi(argv[2]), argv[1]);
 
-    // Connect to server
-    if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-        error("CLIENT: ERROR connecting");
-    }
-    // Get input message from user
-    printf("CLIENT: Enter text to send to the server, and then hit enter: ");
-    // Clear out the buffer array
-    memset(buffer, '\0', sizeof(buffer));
-    // Get input from the user, trunc to buffer - 1 chars, leaving \0
-    fgets(buffer, sizeof(buffer) - 1, stdin);
-    // Remove the trailing \n that fgets adds
-    buffer[strcspn(buffer, "\n")] = '\0'; 
+    // // Connect to server
+    // if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
+    //     error("CLIENT: ERROR connecting");
+    // }
+    // // Get input message from user
+    // printf("CLIENT: Enter text to send to the server, and then hit enter: ");
+    // // Clear out the buffer array
+    // memset(buffer, '\0', sizeof(buffer));
+    // // Get input from the user, trunc to buffer - 1 chars, leaving \0
+    // fgets(buffer, sizeof(buffer) - 1, stdin);
+    // // Remove the trailing \n that fgets adds
+    // buffer[strcspn(buffer, "\n")] = '\0'; 
 
-    // Send message to server
-    // Write to the server
-    charsWritten = send(socketFD, buffer, strlen(buffer), 0); 
-    if (charsWritten < 0){
-        error("CLIENT: ERROR writing to socket");
-    }
-    if (charsWritten < strlen(buffer)){
-        printf("CLIENT: WARNING: Not all data written to socket!\n");
-    }
+    // // Send message to server
+    // // Write to the server
+    // charsWritten = send(socketFD, buffer, strlen(buffer), 0); 
+    // if (charsWritten < 0){
+    //     error("CLIENT: ERROR writing to socket");
+    // }
+    // if (charsWritten < strlen(buffer)){
+    //     printf("CLIENT: WARNING: Not all data written to socket!\n");
+    // }
 
-    // Get return message from server
-    // Clear out the buffer again for reuse
-    memset(buffer, '\0', sizeof(buffer));
-    // Read data from the socket, leaving \0 at end
-    charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
-    if (charsRead < 0){
-        error("CLIENT: ERROR reading from socket");
-    }
-    printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
+    // // Get return message from server
+    // // Clear out the buffer again for reuse
+    // memset(buffer, '\0', sizeof(buffer));
+    // // Read data from the socket, leaving \0 at end
+    // charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
+    // if (charsRead < 0){
+    //     error("CLIENT: ERROR reading from socket");
+    // }
+    // printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
 
-    // Close the socket
-    close(socketFD); 
+    // // Close the socket
+    // close(socketFD); 
     return 0;
 }
