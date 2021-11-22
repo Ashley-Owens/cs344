@@ -20,7 +20,7 @@ start the individual server like this:
 ./enc_server 49123
 
 client needs to start like this:
-enc_client plaintext keyfile port
+enc_client plaintext1 key42 45678
 where plaintext is a filename
 where key is a filename
 

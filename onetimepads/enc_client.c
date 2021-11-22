@@ -16,13 +16,6 @@
 #include <unistd.h>
 
 
-/**
-* Client code
-* 1. Create a socket and connect to the server specified in the command arugments.
-* 2. Prompt the user for input and send that input as a message to the server.
-* 3. Print the message received from the server and exit the program.
-*/
-
 // Error function used for reporting issues
 void error(const char *msg) { 
     perror(msg); 
@@ -58,7 +51,7 @@ void setupAddressStruct(struct sockaddr_in* address, int portNumber) {
 *   one line of input of variable length.
 *
 *   args:   fileName - name of the file to open  
-*   return: pointer to heap memory containing file text
+*   return: pointer to heap memory containing the file's text
 */
 char* getFileText(char* fileName) {
     char *text;
@@ -67,13 +60,13 @@ char* getFileText(char* fileName) {
 
     // Error handling: fileName not in working directory
     if (fd == NULL) {
-        fprintf(stderr, "enc_client error: cannot open the file %s\n", fileName);
+        fprintf(stderr, "enc_client: ERROR cannot open the file %s\n", fileName);
     }
 
     // Allocates space on the heap for plain text data
     text = (char*)malloc(size * sizeof(char));
     if (text == NULL) {
-        fprintf(stderr, "enc_client error: heap space full\n");
+        fprintf(stderr, "enc_client: ERROR heap space full\n");
     }
 
     // Stores data on the heap
@@ -115,14 +108,53 @@ bool isValid(char* text, char* key) {
     return true;
 }
 
+/*
+*   performHandshake()
+*   Performs initial handshake with server, sending client's program name
+*   to verify that only the encryption client/server can connect.
+*
+*   arg:    socket - socket file descriptor 
+*   return: false for errors, else true for valid connection
+*/
+bool performHandShake(int socket) {
+    char  buffer[4096];
+    int   charsRead, charsWritten;
+    char* client = "enc_client";
+    char* server = "enc_server";
+
+    // Clear buffer
+    memset(buffer, '\0', 4096);
+
+    // Send message through socket to the server
+    charsWritten = send(socket, client, strlen(client), 0);
+    if (charsWritten < 0) {
+        error("enc_client: ERROR writing to socket\n");
+    }
+    if (charsWritten < strlen(buffer)) {
+        printf("enc_client: WARNING: Not all data written to socket!\n");
+    }
+
+    // Read data from the socket, leaving \0 at end
+    charsRead = recv(socket, buffer, sizeof(buffer) - 1, 0); 
+    if (charsRead < 0){
+        error("enc_client: ERROR reading from socket");
+    }
+    // printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
+
+    // Confirms that communication with this server is valid
+	if (strcmp(buffer, server) == 0) {
+		return true;
+	}
+	return false;
+}
+
 int main(int argc, char *argv[]) {
-    int socketFD, option, charsWritten, charsRead;
+    int socketFD, option;
     struct sockaddr_in serverAddress;
-    char buffer[256];
 
     // Check usage & args
     if (argc != 4) { 
-        fprintf(stderr,"USAGE: %s plaintextfile keyfile port\n", argv[0]); 
+        fprintf(stderr,"USAGE: %s plaintext key port\n", argv[0]); 
         exit(EXIT_FAILURE); 
     }
 
@@ -131,15 +163,15 @@ int main(int argc, char *argv[]) {
     char *key = getFileText(argv[2]);
 
     // Helper function to validate file input lengths and characters
-    bool  valid = isValid(text, key);
+    bool valid = isValid(text, key);
     if (valid == false) {
         exit(EXIT_FAILURE);
     }
 
-    // Create a socket
+    // Create a socket and check for errors
     socketFD = socket(AF_INET, SOCK_STREAM, 0); 
     if (socketFD < 0) {
-        error("enc_client error: ERROR opening socket");
+        error("enc_client: ERROR opening socket\n");
     }
 
     // Allow the port to be reused
@@ -150,36 +182,17 @@ int main(int argc, char *argv[]) {
 
     // Connect to server
     if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-        error("enc_client error: ERROR connecting to server");
+        error("enc_client: ERROR connecting to server\n");
     }
-    // // Get input message from user
-    // printf("CLIENT: Enter text to send to the server, and then hit enter: ");
-    // // Clear out the buffer array
-    // memset(buffer, '\0', sizeof(buffer));
-    // // Get input from the user, trunc to buffer - 1 chars, leaving \0
-    // fgets(buffer, sizeof(buffer) - 1, stdin);
-    // // Remove the trailing \n that fgets adds
-    // buffer[strcspn(buffer, "\n")] = '\0'; 
-
-    // // Send message to server
-    // // Write to the server
-    // charsWritten = send(socketFD, buffer, strlen(buffer), 0); 
-    // if (charsWritten < 0){
-    //     error("CLIENT: ERROR writing to socket");
-    // }
-    // if (charsWritten < strlen(buffer)){
-    //     printf("CLIENT: WARNING: Not all data written to socket!\n");
-    // }
-
-    // // Get return message from server
-    // // Clear out the buffer again for reuse
-    // memset(buffer, '\0', sizeof(buffer));
-    // // Read data from the socket, leaving \0 at end
-    // charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
-    // if (charsRead < 0){
-    //     error("CLIENT: ERROR reading from socket");
-    // }
-    // printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
+    
+    // Perform initial handshake to verify client/server identities
+    bool handshake = performHandShake(socketFD);
+    if (handshake == true) {
+        printf("handshake succeeded\n");
+    }
+    else {
+        error("enc_server: client failed handshake\n");
+    }
 
     // Close the socket
     close(socketFD);

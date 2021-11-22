@@ -6,19 +6,21 @@
 // Server runs in the background and supports up to 5 concurrent socket connections.
 
 
+#include <ctype.h>
+#include <netdb.h>      // gethostbyname()
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>  // ssize_t
+#include <sys/socket.h> // send(),recv()
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 
 // Error function used for reporting issues
 void error(const char *msg) {
     perror(msg);
-    exit(1);
+    exit(EXIT_FAILURE);
 } 
 
 // Set up the address struct for the server socket
@@ -33,22 +35,65 @@ void setupAddressStruct(struct sockaddr_in* address, int portNumber) {
     address->sin_addr.s_addr = INADDR_ANY;
 }
 
+/*
+*   performHandshake()
+*   Performs initial handshake with server, sending client's program name
+*   to verify that it is a valid client for connection.
+*
+*   arg:    socketFD - socket file descriptor 
+*   return: false for errors, else true for valid connection
+*/
+bool performHandShake(int socketFD) {
+    char  buffer[4096];
+    int   charsRead, charsWritten;
+    char* client = "enc_client";
+    char* server = "enc_server";
+
+    // Clear buffer
+    memset(buffer, '\0', 4096);
+
+    // Read data from the socket, leaving \0 at end
+    charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
+    if (charsRead < 0){
+        error("enc_server: ERROR reading from socket\n");
+    }
+    // printf("Server: I received this from the client: \"%s\"\n", buffer);
+
+    // Send message through socket to the server
+    charsWritten = send(socketFD, server, strlen(server), 0);
+    if (charsWritten < 0) {
+        error("enc_server: ERROR writing to socket\n");
+    }
+    if (charsWritten < strlen(buffer)) {
+        printf("enc_server: WARNING not all data written to socket!\n");
+    }
+
+    // Confirms that communication with this client is valid
+	if (strcmp(buffer, client) == 0) {
+		return true;
+	}
+	return false;
+}
+
+void performEncryption(int socketFD) {
+
+}
+
 int main(int argc, char *argv[]){
-    int connectionSocket, charsRead;
-    char buffer[256];
+    int connectionSocket;
     struct sockaddr_in serverAddress, clientAddress;
     socklen_t sizeOfClientInfo = sizeof(clientAddress);
 
     // Check usage & args
-    if (argc < 2) { 
-        fprintf(stderr,"USAGE: %s port\n", argv[0]); 
-        exit(1);
+    if (argc != 2) { 
+        fprintf(stderr,"enc_server USAGE: %s port\n", argv[0]); 
+        exit(EXIT_FAILURE);
     } 
     
     // Create the socket that will listen for connections
     int listenSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (listenSocket < 0) {
-        error("ERROR opening socket");
+        error("enc_server: ERROR opening server socket\n");
     }
 
     // Set up the address struct for the server socket
@@ -58,10 +103,10 @@ int main(int argc, char *argv[]){
 
     // Check for errors
     if (bindSocket < 0) {
-        error("ERROR on binding");
+        error("enc_server: ERROR on binding socket\n");
     }
 
-    // Start listening for connetions. Allow up to 5 connections to queue up
+    // Start listening for connections. Allow up to 5 connections to queue up
     listen(listenSocket, 5); 
     
     // Accept a connection, blocking if one is not available until one connects
@@ -69,28 +114,26 @@ int main(int argc, char *argv[]){
         // Accept the connection request which creates a connection socket
         connectionSocket = accept(listenSocket, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); 
         if (connectionSocket < 0) {
-            error("ERROR on accept");
+            error("enc_server: ERROR on accept");
         }
 
-        printf("SERVER: Connected to client running at host %d port %d\n", 
+        printf("enc_server: Connected to client running at host %d port %d\n", 
                             ntohs(clientAddress.sin_addr.s_addr),
                             ntohs(clientAddress.sin_port));
+        
+        // Perform initial handshake to verify client/server identities
+        bool handshake = performHandShake(connectionSocket);
 
-        // Get the message from the client and display it
-        memset(buffer, '\0', 256);
-        // Read the client's message from the socket
-        charsRead = recv(connectionSocket, buffer, 255, 0); 
-        if (charsRead < 0) {
-            error("ERROR reading from socket");
+        if (handshake == true) {
+            printf("handshake succeeded\n");
+            performEncryption(connectionSocket);
+            
         }
-        printf("SERVER: I received this from the client: \"%s\"\n", buffer);
+        else {
+            error("enc_server: dec_client cannot use enc_server\n");
+        }
 
-        // Send a Success message back to the client
-        charsRead = send(connectionSocket, 
-                        "I am the server, and I got your message", 39, 0); 
-        if (charsRead < 0) {
-            error("ERROR writing to socket");
-        }
+        
         // Close the connection socket for this client
         close(connectionSocket); 
     }
