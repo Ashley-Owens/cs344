@@ -42,9 +42,9 @@ void setupAddressStruct(struct sockaddr_in* address,
     address->sin_port = htons(portNumber);
 
     // Get the DNS entry for this host name
-    struct hostent* hostInfo = gethostbyname(hostname); 
+    struct hostent* hostInfo = gethostbyname("localhost"); 
     if (hostInfo == NULL) { 
-        fprintf(stderr, "CLIENT: ERROR, no such host\n"); 
+        fprintf(stderr, "enc_client error: no such host\n"); 
         exit(0); 
     }
     // Copy the first IP address from the DNS entry to sin_addr.s_addr
@@ -101,7 +101,7 @@ bool isValid(char* text, char* key) {
 
     // Checks for error: plaintext file with ANY bad characters
     for (int i=0; i < strlen(text); i++) {
-        if (isupper(text[i]) != 0 || text[i] != ' ' || text[i] != '\n') {
+        if (isupper(text[i]) == 0 && text[i] != ' ' && text[i] != '\n') {
             fprintf(stderr, "enc_client error: text file contains bad characters\n");
             return false;
         }
@@ -109,7 +109,7 @@ bool isValid(char* text, char* key) {
 
     // Checks for error: key file with ANY bad characters
     for (int i=0; i < strlen(key); i++) {
-        if (isupper(key[i]) != 0 || key[i] != ' ' || key[i] != '\n') {
+        if (isupper(key[i]) == 0 && key[i] != ' ' && key[i] != '\n') {
             fprintf(stderr, "enc_client error: key file contains bad characters\n");
             return false;
         }
@@ -125,32 +125,32 @@ int main(int argc, char *argv[]) {
     // Check usage & args
     if (argc != 4) { 
         fprintf(stderr,"USAGE: %s plaintextfile keyfile port\n", argv[0]); 
-        exit(0); 
-    } 
+        exit(EXIT_FAILURE); 
+    }
 
-    // Helper function to save file text into char array
+    // Helper functions to save file input into char arrays in heap memory
     char *text = getFileText(argv[1]);
     char *key = getFileText(argv[2]);
-    int  valid = isValid(text, key);
 
+    // Helper function to validate file input
+    bool  valid = isValid(text, key);
     if (valid == false) {
         exit(EXIT_FAILURE);
     }
 
-
     // Create a socket
-    // socketFD = socket(AF_INET, SOCK_STREAM, 0); 
-    // if (socketFD < 0) {
-    //     error("CLIENT: ERROR opening socket");
-    // }
+    socketFD = socket(AF_INET, SOCK_STREAM, 0); 
+    if (socketFD < 0) {
+        error("enc_client error: ERROR opening socket");
+    }
 
-    // // Set up the server address struct
-    // setupAddressStruct(&serverAddress, atoi(argv[2]), argv[1]);
+    // Set up the server address struct
+    setupAddressStruct(&serverAddress, atoi(argv[2]), argv[1]);
 
-    // // Connect to server
-    // if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-    //     error("CLIENT: ERROR connecting");
-    // }
+    // Connect to server
+    if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
+        error("enc_client error: ERROR connecting to server");
+    }
     // // Get input message from user
     // printf("CLIENT: Enter text to send to the server, and then hit enter: ");
     // // Clear out the buffer array
@@ -181,6 +181,10 @@ int main(int argc, char *argv[]) {
     // printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
 
     // // Close the socket
-    // close(socketFD); 
+    // close(socketFD);
+
+    // Frees heap memory
+    free(text);
+    free(key);
     return EXIT_SUCCESS;
 }

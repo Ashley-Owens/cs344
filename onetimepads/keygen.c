@@ -50,12 +50,12 @@ void generateKey(int key_length) {
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr,"Please enter a numerical value. For example: keygen 10\n"); 
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
     if (atoi(argv[1]) < 0) {
 		fprintf(stderr, "Please enter a valid key length\n");
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 	}
 
     generateKey(atoi(argv[1]));
