@@ -5,7 +5,9 @@
 // the server to encrypt ciphertext using passed-in text and key.
 
 
+#include <ctype.h>
 #include <netdb.h>      // gethostbyname()
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +15,6 @@
 #include <sys/socket.h> // send(),recv()
 #include <unistd.h>
 
-#define LENGTH 12000
 
 /**
 * Client code
@@ -68,18 +69,52 @@ char* getFileText(char* fileName) {
 
     // Error handling: fileName not in working directory
     if (fd == NULL) {
-        fprintf(stderr, "Error: encrypt client cannot open %s\n", fileName);
+        fprintf(stderr, "enc_client error: cannot open the file %s\n", fileName);
     }
 
     // Allocates space on the heap for plain text data
     text = (char*)malloc(size * sizeof(char));
     if (text == NULL) {
-        fprintf(stderr, "Error: encrypt client heap space full\n");
+        fprintf(stderr, "enc_client error: heap space full\n");
     }
 
     // Stores data on the heap
     getline(&text, &size, fd);
     return text;
+}
+
+/*
+*   isValid()
+*   Checks the given char arrays containing plaintext and key for correct
+*   length and valid characters. 
+*
+*   arg:    text - pointer to plaintext char array  
+*   arg:    key  - pointer to key char array
+*   return: false for errors, else true for valid input
+*/
+bool isValid(char* text, char* key) {
+    // Checks for error: key file is shorter than the plaintext
+    if (strlen(key) < strlen(text)) {
+        fprintf(stderr,"enc_client error: key is too short\n");
+        return false;
+    }
+
+    // Checks for error: plaintext file with ANY bad characters
+    for (int i=0; i < strlen(text); i++) {
+        if (isupper(text[i]) != 0 || text[i] != ' ' || text[i] != '\n') {
+            fprintf(stderr, "enc_client error: text file contains bad characters\n");
+            return false;
+        }
+    }
+
+    // Checks for error: key file with ANY bad characters
+    for (int i=0; i < strlen(key); i++) {
+        if (isupper(key[i]) != 0 || key[i] != ' ' || key[i] != '\n') {
+            fprintf(stderr, "enc_client error: key file contains bad characters\n");
+            return false;
+        }
+    }
+    return true;
 }
 
 int main(int argc, char *argv[]) {
@@ -96,6 +131,11 @@ int main(int argc, char *argv[]) {
     // Helper function to save file text into char array
     char *text = getFileText(argv[1]);
     char *key = getFileText(argv[2]);
+    int  valid = isValid(text, key);
+
+    if (valid == false) {
+        exit(EXIT_FAILURE);
+    }
 
 
     // Create a socket
@@ -142,5 +182,5 @@ int main(int argc, char *argv[]) {
 
     // // Close the socket
     // close(socketFD); 
-    return 0;
+    return EXIT_SUCCESS;
 }

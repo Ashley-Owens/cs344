@@ -26,3 +26,4 @@ where key is a filename
 
 
 gcc --std=gnu99 -g -Wall -o enc_server enc_server.c
+gcc --std=gnu99 -g -Wall -o enc_client enc_client.c
