@@ -113,10 +113,10 @@ bool isValid(char* text, char* key) {
 *   Performs initial handshake with server, sending client's program name
 *   to verify that only the encryption client/server can connect.
 *
-*   arg:    socket - socket file descriptor 
+*   arg:    socketFD - socket file descriptor 
 *   return: false for errors, else true for valid connection
 */
-bool performHandShake(int socket) {
+bool performHandShake(int socketFD) {
     char  buffer[4096];
     int   charsRead, charsWritten;
     char* client = "enc_client";
@@ -126,7 +126,7 @@ bool performHandShake(int socket) {
     memset(buffer, '\0', 4096);
 
     // Send message through socket to the server
-    charsWritten = send(socket, client, strlen(client), 0);
+    charsWritten = send(socketFD, client, strlen(client), 0);
     if (charsWritten < 0) {
         error("enc_client: ERROR writing to socket\n");
     }
@@ -135,7 +135,7 @@ bool performHandShake(int socket) {
     }
 
     // Read data from the socket, leaving \0 at end
-    charsRead = recv(socket, buffer, sizeof(buffer) - 1, 0); 
+    charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
     if (charsRead < 0){
         error("enc_client: ERROR reading from socket");
     }
@@ -146,6 +146,12 @@ bool performHandShake(int socket) {
 		return true;
 	}
 	return false;
+}
+
+void sendData(char* data, int socketFD) {
+    char buffer[4096];
+    // TODO: send data to server
+    
 }
 
 int main(int argc, char *argv[]) {
@@ -188,16 +194,20 @@ int main(int argc, char *argv[]) {
     // Perform initial handshake to verify client/server identities
     bool handshake = performHandShake(socketFD);
     if (handshake == true) {
-        printf("handshake succeeded\n");
+        sendData(text, socketFD);
+        sendData(key, socketFD);
     }
     else {
         error("enc_server: client failed handshake\n");
+        exit(EXIT_FAILURE);
     }
+
+    // TODO: Receive DATA from server
 
     // Close the socket
     close(socketFD);
 
-    // Frees heap memory
+    // Free heap memory
     free(text);
     free(key);
     return EXIT_SUCCESS;
