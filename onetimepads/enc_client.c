@@ -35,7 +35,7 @@ void setupAddressStruct(struct sockaddr_in* address, int portNumber) {
     // Get the DNS entry for this host name
     struct hostent* hostInfo = gethostbyname("localhost"); 
     if (hostInfo == NULL) { 
-        fprintf(stderr, "enc_client error: no such host\n"); 
+        fprintf(stderr, "enc_client: ERROR no such host\n"); 
         exit(0); 
     }
     // Copy the first IP address from the DNS entry to sin_addr.s_addr
@@ -86,14 +86,14 @@ char* getFileText(char* fileName) {
 bool isValid(char* text, char* key) {
     // Checks for error: key file is shorter than the plaintext
     if (strlen(key) < strlen(text)) {
-        fprintf(stderr,"enc_client error: key is too short\n");
+        fprintf(stderr,"enc_client: ERROR key is too short\n");
         return false;
     }
 
     // Checks for error: plaintext file with ANY bad characters
     for (int i=0; i < strlen(text); i++) {
         if (isupper(text[i]) == 0 && text[i] != ' ' && text[i] != '\n') {
-            fprintf(stderr, "enc_client error: text file contains bad characters\n");
+            fprintf(stderr, "enc_client: ERROR text file contains bad characters\n");
             return false;
         }
     }
@@ -101,7 +101,7 @@ bool isValid(char* text, char* key) {
     // Checks for error: key file with ANY bad characters
     for (int i=0; i < strlen(key); i++) {
         if (isupper(key[i]) == 0 && key[i] != ' ' && key[i] != '\n') {
-            fprintf(stderr, "enc_client error: key file contains bad characters\n");
+            fprintf(stderr, "enc_client: ERROR key file contains bad characters\n");
             return false;
         }
     }
@@ -117,13 +117,13 @@ bool isValid(char* text, char* key) {
 *   return: false for errors, else true for valid connection
 */
 bool performHandShake(int socketFD) {
-    char  buffer[4096];
+    char  buffer[1024];
     int   charsRead, charsWritten;
     char* client = "enc_client";
     char* server = "enc_server";
 
     // Clear buffer
-    memset(buffer, '\0', 4096);
+    memset(buffer, '\0', 1024);
 
     // Send message through socket to the server
     charsWritten = send(socketFD, client, strlen(client), 0);
@@ -131,7 +131,7 @@ bool performHandShake(int socketFD) {
         error("enc_client: ERROR writing to socket\n");
     }
     if (charsWritten < strlen(buffer)) {
-        printf("enc_client: WARNING: Not all data written to socket!\n");
+        printf("enc_client: WARNING not all data written to socket!\n");
     }
 
     // Read data from the socket, leaving \0 at end
@@ -149,7 +149,7 @@ bool performHandShake(int socketFD) {
 }
 
 void sendData(char* data, int socketFD) {
-    char buffer[4096];
+    char buffer[1024];
     // TODO: send data to server
     
 }
@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
 
     // Check usage & args
     if (argc != 4) { 
-        fprintf(stderr,"USAGE: %s plaintext key port\n", argv[0]); 
+        fprintf(stderr,"enc_client: USAGE %s plaintext key port\n", argv[0]); 
         exit(EXIT_FAILURE); 
     }
 
@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
         sendData(key, socketFD);
     }
     else {
-        error("enc_server: client failed handshake\n");
+        error("enc_server: ERROR client failed handshake\n");
         exit(EXIT_FAILURE);
     }
 

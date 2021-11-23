@@ -86,7 +86,7 @@ int main(int argc, char *argv[]){
 
     // Check usage & args
     if (argc != 2) { 
-        fprintf(stderr,"enc_server USAGE: %s port\n", argv[0]); 
+        fprintf(stderr,"enc_server: USAGE %s port\n", argv[0]); 
         exit(EXIT_FAILURE);
     } 
     
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]){
         // Accept the connection request which creates a connection socket
         connectionSocket = accept(listenSocket, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); 
         if (connectionSocket < 0) {
-            error("enc_server: ERROR on accept");
+            error("enc_server: ERROR on accept\n");
         }
 
         printf("enc_server: Connected to client running at host %d port %d\n", 
