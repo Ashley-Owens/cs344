@@ -148,10 +148,24 @@ bool performHandShake(int socketFD) {
 	return false;
 }
 
-void sendData(char* data, int socketFD) {
-    char buffer[1024];
+void sendData(char* data, char* key, int socketFD) {
+
+    int chunk = 1024;
+    int charsWritten;
+    int length = strlen(data) + strlen(key);
+
+    char* buffer = (char *)malloc(length);
+    strcpy(buffer, data);
+    strcat(buffer, key);
+    char* pointer = buffer;
+
     // TODO: send data to server
-    
+    while (length > 0) {
+        charsWritten = send(socketFD, pointer, chunk, 0);
+        length -= charsWritten;
+        pointer += charsWritten;
+    }
+    free(buffer);
 }
 
 int main(int argc, char *argv[]) {
@@ -194,8 +208,8 @@ int main(int argc, char *argv[]) {
     // Perform initial handshake to verify client/server identities
     bool handshake = performHandShake(socketFD);
     if (handshake == true) {
-        sendData(text, socketFD);
-        sendData(key, socketFD);
+        sendData(text, key, socketFD);
+        // sendData(key, socketFD);
     }
     else {
         error("enc_server: ERROR client failed handshake\n");

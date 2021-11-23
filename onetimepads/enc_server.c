@@ -75,12 +75,59 @@ bool performHandShake(int socketFD) {
 	return false;
 }
 
+char* receiveData(int connectionSocket) {
+    char* data;
+    size_t chunk = 1024;
+    int charsRead;
+    char buffer[chunk];
+    int newLine = 0;
+
+    // Allocates space on the heap for socket data
+    data = (char*)malloc(chunk * sizeof(char));
+    char* p = data;
+
+    while (true) {
+        // Clear temporary buffer for socket chunk
+        memset(buffer, '\0', chunk);
+        charsRead = recv(connectionSocket, buffer, sizeof(buffer) -1, 0);
+        
+        // Error reading from socket
+        if (charsRead < 0) { error("enc_servert: ERROR reading from socket"); }
+
+        // Server has received all data
+        if (charsRead == 0) { break; }
+        
+        else {
+            // Text input and key both contain a new line char
+            if (strchr(buffer, '\n') != NULL) { 
+                newLine += 1;
+                printf("buffer is %s\n", buffer);
+                printf("newlines: %d\n", newLine);
+            }
+
+            // Copy buffer to heap memory, add more memory for next buffer
+            if (newLine <= 2) {
+                strncpy(p, buffer, strlen(buffer));
+                p += charsRead;
+                data = realloc(data, chunk * sizeof(char));
+            }
+            
+            // Too many new line chars, exit loop
+            else { 
+                break; 
+            }
+        }
+    }
+    return data;
+}
+
 void performEncryption(int socketFD) {
 
 }
 
 int main(int argc, char *argv[]){
     int connectionSocket;
+    char* data;
     struct sockaddr_in serverAddress, clientAddress;
     socklen_t sizeOfClientInfo = sizeof(clientAddress);
 
@@ -126,7 +173,10 @@ int main(int argc, char *argv[]){
 
         if (handshake == true) {
             printf("handshake succeeded\n");
+            data = receiveData(connectionSocket);
+            printf("data is: %s", data);
             performEncryption(connectionSocket);
+            free(data);
             
         }
         else {
@@ -135,7 +185,7 @@ int main(int argc, char *argv[]){
 
         
         // Close the connection socket for this client
-        close(connectionSocket); 
+        // close(connectionSocket); 
     }
     // Close the listening socket
     close(listenSocket); 
