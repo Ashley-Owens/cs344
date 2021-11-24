@@ -146,20 +146,36 @@ char* encryptData(char* data) {
     memset(text, '\0', textLen + 1);
     strncpy(text, data, textLen);
     
-    // printf("text is: %s\n", text);
-    // printf("text length is: %d\n", textLen);
-    char* encryptedText;
-    // char buffer[int p];
-    // char text[length];
-    // char key[length];
-    // memset(text, '\0', length);
+    // Allocates heap memory to store encrypted text
+    char* encryptedText = (char*)malloc((textLen +1) * sizeof(char));
+    int temp;
+    char letters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    
+    for (int i=0; i < textLen; i++) {
+        if (text[i] == ' ') {
+            // Plaintext char and key char are both spaces
+            if (key[i] == ' ') {
+                temp = 0 % 27;
+            // Plaintext char is a space but key char is not a space
+            } else {
+                temp = ((key[i] - 64) % 27);
+            }
+        
+        } else {
+            // Plaintext char is not a space but key char is a space
+            if (key[i] == ' ') {
+                temp = ((text[i] - 64) % 27);
 
-     // Allocates heap memory to store encrypted text
-    // encryptedText = (char*)malloc(strlen(data) * sizeof(char));
-    // printf("data length is: %d\n", length);
-    // printf("data is: %s", data);
-
-
+            // Plaintext and key chars are not spaces
+            } else {
+                temp = (((text[i] - 64) + (key[i] - 64)) % 27);
+            }
+        }
+        // Store encrypted char in text buffer
+        text[i] = letters[temp];
+    }
+    strcpy(encryptedText, text);
+    strcat(encryptedText, "\n");
     return encryptedText;
 }
 
@@ -215,6 +231,7 @@ int main(int argc, char *argv[]){
         if (handshake == true) {
             data = receiveData(connectionSocket);
             encryptedText = encryptData(data);
+            printf("text is: %s", encryptedText);
             free(data);
             free(encryptedText);
         }
