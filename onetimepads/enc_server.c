@@ -86,8 +86,8 @@ bool performHandShake(int socketFD) {
 char* receiveData(int socketFD) {
     char*  data;
     size_t chunk = 1024;
-    int    charsRead;
-    char   buffer[chunk];
+    int    charsRead, newlines;
+    char   buffer[chunk];  
 
     // Allocates space on the heap for socket data
     data = (char*)malloc(chunk * sizeof(char));
@@ -104,11 +104,19 @@ char* receiveData(int socketFD) {
         // Server has received all data
         if (charsRead == 0) { break; }
         
-        // Copies buffer string to heap memory, adds more memory for next buffer
         else {
-            strncpy(p, buffer, strlen(buffer));
-            p += charsRead;
-            data = realloc(data, chunk * sizeof(char));
+            // Socket data will only have two newline chars
+            for (int i=0; i < strlen(buffer); i++) {
+                if (buffer[i] == '\n') {
+                    newlines += 1;
+                }
+            }
+            // Copies buffer string to heap memory, adds more memory for next buffer
+            if (newlines < 3) {
+                strncpy(p, buffer, strlen(buffer));
+                p += charsRead;
+                data = realloc(data, chunk * sizeof(char));
+            } else { break; }
         }
     }
     return data;
@@ -122,7 +130,37 @@ char* receiveData(int socketFD) {
 *   return: pointer to heap memory containing encrypted text
 */
 char* encryptData(char* data) {
+    // Finds start of key and copies to buffer
+    // Doesn't copy newline chars at start and end of key
+    char* k = strchr(data, '\n');
+    int   keyLen = strlen(k);
+    char  key[keyLen];
+    memset(key, '\0', keyLen);
+    strncpy(key, k + 1, keyLen - 2);
+    // printf("key length is: %d\n", keyLen);
+    // printf("key is: %s\n", key);
 
+    // Copies text to buffer
+    int  textLen = strlen(data) - keyLen;
+    char text[textLen];
+    memset(text, '\0', textLen + 1);
+    strncpy(text, data, textLen);
+    
+    // printf("text is: %s\n", text);
+    // printf("text length is: %d\n", textLen);
+    char* encryptedText;
+    // char buffer[int p];
+    // char text[length];
+    // char key[length];
+    // memset(text, '\0', length);
+
+     // Allocates heap memory to store encrypted text
+    // encryptedText = (char*)malloc(strlen(data) * sizeof(char));
+    // printf("data length is: %d\n", length);
+    // printf("data is: %s", data);
+
+
+    return encryptedText;
 }
 
 int main(int argc, char *argv[]){
