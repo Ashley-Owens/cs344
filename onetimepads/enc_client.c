@@ -148,18 +148,27 @@ bool performHandShake(int socketFD) {
 	return false;
 }
 
+/*
+*   sendData()
+*   Concatenates plaintext and key, sending all data through
+*   socket connections at one time.
+*
+*   arg:    data - pointer to plaintext char array  
+*   arg:    key  - pointer to key char array
+*   arg:    socketFD  - socket file descriptor
+*/
 void sendData(char* data, char* key, int socketFD) {
-
     int chunk = 1024;
     int charsWritten;
     int length = strlen(data) + strlen(key);
 
+    // Concatenates plaintext and key
     char* buffer = (char *)malloc(length);
     strcpy(buffer, data);
     strcat(buffer, key);
     char* pointer = buffer;
 
-    // TODO: send data to server
+    // Sends concatenated data to the server
     while (length > 0) {
         charsWritten = send(socketFD, pointer, chunk, 0);
         length -= charsWritten;
@@ -168,8 +177,48 @@ void sendData(char* data, char* key, int socketFD) {
     free(buffer);
 }
 
+/*
+*   receiveData()
+*   Reads socket data into a temp buffer, writing it to heap memory
+*   for later use.
+*
+*   arg:    socketFD - socket file descriptor 
+*   return: pointer to heap memory containing socket data
+*/
+char* receiveData(int socketFD) {
+    char*  data;
+    size_t chunk = 1024;
+    int    charsRead;
+    char   buffer[chunk];
+
+    // Allocates space on the heap for socket data
+    data = (char*)malloc(chunk * sizeof(char));
+    char* p = data;
+
+    while (true) {
+        // Clear temporary buffer for socket chunk
+        memset(buffer, '\0', chunk);
+        charsRead = recv(socketFD, buffer, sizeof(buffer) -1, 0);
+        
+        // Error reading from socket
+        if (charsRead < 0) { error("enc_client: ERROR reading from socket in receiveData()\n"); }
+
+        // Client has received all data
+        if (charsRead == 0) { break; }
+        
+        // Copies buffer string to heap memory, adds more memory for next buffer
+        else {
+            strncpy(p, buffer, strlen(buffer));
+            p += charsRead;
+            data = realloc(data, chunk * sizeof(char));
+        }
+    }
+    return data;
+}
+
 int main(int argc, char *argv[]) {
     int socketFD, option;
+    char* encryptedText;
     struct sockaddr_in serverAddress;
 
     // Check usage & args
@@ -207,16 +256,16 @@ int main(int argc, char *argv[]) {
     
     // Perform initial handshake to verify client/server identities
     bool handshake = performHandShake(socketFD);
+
+    // Server is verified, send data and receive encrypted text from server
     if (handshake == true) {
         sendData(text, key, socketFD);
-        // sendData(key, socketFD);
+        encryptedText = receiveData(socketFD);
     }
     else {
         error("enc_server: ERROR client failed handshake\n");
         exit(EXIT_FAILURE);
     }
-
-    // TODO: Receive DATA from server
 
     // Close the socket
     close(socketFD);

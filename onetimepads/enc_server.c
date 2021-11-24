@@ -75,12 +75,19 @@ bool performHandShake(int socketFD) {
 	return false;
 }
 
-char* receiveData(int connectionSocket) {
-    char* data;
+/*
+*   receiveData()
+*   Reads socket data into a temp buffer, writing it to heap memory
+*   for later use.
+*
+*   arg:    socketFD - socket file descriptor 
+*   return: pointer to heap memory containing socket data
+*/
+char* receiveData(int socketFD) {
+    char*  data;
     size_t chunk = 1024;
-    int charsRead;
-    char buffer[chunk];
-    int newLine = 0;
+    int    charsRead;
+    char   buffer[chunk];
 
     // Allocates space on the heap for socket data
     data = (char*)malloc(chunk * sizeof(char));
@@ -89,45 +96,39 @@ char* receiveData(int connectionSocket) {
     while (true) {
         // Clear temporary buffer for socket chunk
         memset(buffer, '\0', chunk);
-        charsRead = recv(connectionSocket, buffer, sizeof(buffer) -1, 0);
+        charsRead = recv(socketFD, buffer, sizeof(buffer) -1, 0);
         
         // Error reading from socket
-        if (charsRead < 0) { error("enc_servert: ERROR reading from socket"); }
+        if (charsRead < 0) { error("enc_server: ERROR reading from socket in receiveData()\n"); }
 
         // Server has received all data
         if (charsRead == 0) { break; }
         
+        // Copies buffer string to heap memory, adds more memory for next buffer
         else {
-            // Text input and key both contain a new line char
-            if (strchr(buffer, '\n') != NULL) { 
-                newLine += 1;
-                printf("buffer is %s\n", buffer);
-                printf("newlines: %d\n", newLine);
-            }
-
-            // Copy buffer to heap memory, add more memory for next buffer
-            if (newLine <= 2) {
-                strncpy(p, buffer, strlen(buffer));
-                p += charsRead;
-                data = realloc(data, chunk * sizeof(char));
-            }
-            
-            // Too many new line chars, exit loop
-            else { 
-                break; 
-            }
+            strncpy(p, buffer, strlen(buffer));
+            p += charsRead;
+            data = realloc(data, chunk * sizeof(char));
         }
     }
     return data;
 }
 
-void performEncryption(int socketFD) {
+/*
+*   encryptData()
+*   Encrypts socket data, storing encrypted text in heap memory.
+*
+*   arg:    data - plaintext and key received from socket
+*   return: pointer to heap memory containing encrypted text
+*/
+char* encryptData(char* data) {
 
 }
 
 int main(int argc, char *argv[]){
     int connectionSocket;
     char* data;
+    char* encryptedText;
     struct sockaddr_in serverAddress, clientAddress;
     socklen_t sizeOfClientInfo = sizeof(clientAddress);
 
@@ -165,27 +166,27 @@ int main(int argc, char *argv[]){
         }
 
         printf("enc_server: Connected to client running at host %d port %d\n", 
-                            ntohs(clientAddress.sin_addr.s_addr),
-                            ntohs(clientAddress.sin_port));
+                ntohs(clientAddress.sin_addr.s_addr),
+                ntohs(clientAddress.sin_port)
+        );
         
         // Perform initial handshake to verify client/server identities
         bool handshake = performHandShake(connectionSocket);
 
+        // Client is verified, receive data, encrypt it, and send back
         if (handshake == true) {
-            printf("handshake succeeded\n");
             data = receiveData(connectionSocket);
-            printf("data is: %s", data);
-            performEncryption(connectionSocket);
+            encryptedText = encryptData(data);
             free(data);
-            
+            free(encryptedText);
         }
+        // Client cannot be verified, display error and close socket
         else {
             error("enc_server: dec_client cannot use enc_server\n");
         }
-
         
         // Close the connection socket for this client
-        // close(connectionSocket); 
+        close(connectionSocket); 
     }
     // Close the listening socket
     close(listenSocket); 
