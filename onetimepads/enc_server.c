@@ -84,39 +84,36 @@ bool performHandShake(int socketFD) {
 *   return: pointer to heap memory containing socket data
 */
 char* receiveData(int socketFD) {
-    char*  data;
     size_t chunk = 1024;
-    int    charsRead, newlines;
-    char   buffer[chunk];  
+    int    charsRead, length;
+    char   buffer[chunk];
 
-    // Allocates space on the heap for socket data
-    data = (char*)malloc(chunk * sizeof(char));
+    // Get size of incoming data from client
+    memset(buffer, '\0', chunk);
+	charsRead = recv(socketFD, buffer, chunk, 0); 
+	if (charsRead < 0) error("enc_server: ERROR reading from socket in receiveData()\n");
+
+    // Allocate space on the heap for incoming socket data
+    length = atoi(buffer);
+    char* data = (char*)malloc(length * sizeof(char));
     char* p = data;
 
-    while (true) {
-        // Clear temporary buffer for socket chunk
+    while (length > 0) {
+        // Clear temporary buffer for incoming socket chunk
         memset(buffer, '\0', chunk);
         charsRead = recv(socketFD, buffer, sizeof(buffer) -1, 0);
         
         // Error reading from socket
         if (charsRead < 0) { error("enc_server: ERROR reading from socket in receiveData()\n"); }
 
-        // Server has received all data
-        if (charsRead == 0) { break; }
+        // // Server has received all data
+        // if (charsRead == 0) { break; }
         
+        // Copies buffer string to heap memory
         else {
-            // Socket data will only have two newline chars
-            for (int i=0; i < strlen(buffer); i++) {
-                if (buffer[i] == '\n') {
-                    newlines += 1;
-                }
-            }
-            // Copies buffer string to heap memory, adds more memory for next buffer
-            if (newlines < 3) {
-                strncpy(p, buffer, strlen(buffer));
-                p += charsRead;
-                data = realloc(data, chunk * sizeof(char));
-            } else { break; }
+            strncpy(p, buffer, strlen(buffer));
+            p += charsRead;
+            length -= charsRead;
         }
     }
     return data;
@@ -130,19 +127,19 @@ char* receiveData(int socketFD) {
 *   return: pointer to heap memory containing encrypted text
 */
 char* encryptData(char* data) {
-    // Finds start of key and copies to buffer
-    // Doesn't copy newline chars at start and end of key
-    char* k = strchr(data, '\n');
-    int   keyLen = strlen(k);
-    char  key[keyLen];
-    memset(key, '\0', keyLen);
-    strncpy(key, k + 1, keyLen - 2);
-    // printf("key length is: %d\n", keyLen);
-    // printf("key is: %s\n", key);
-
-    // Copies text to buffer
-    int  textLen = strlen(data) - keyLen;
-    char text[textLen];
+    // Finds start and end of key by newline chars
+    char* j = strchr(data, '\n');
+    int   textLen = strlen(data) - strlen(j);
+    char* k = strchr(j + 1, '\n');
+    int   keyLen = (strlen(j) - 1) - strlen(k);
+    
+    // Copies key string to null terminated buffer
+    char  key[keyLen + 1];
+    memset(key, '\0', keyLen + 1);
+    strncpy(key, j + 1, keyLen);
+    
+    // Copies plain text string to null terminated buffer
+    char text[textLen + 1];
     memset(text, '\0', textLen + 1);
     strncpy(text, data, textLen);
     
@@ -151,6 +148,7 @@ char* encryptData(char* data) {
     int temp;
     char letters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
+    // Iterates through plain text, encrypting one char at a time
     for (int i=0; i < textLen; i++) {
         if (text[i] == ' ') {
             // Plaintext char and key char are both spaces
@@ -171,18 +169,52 @@ char* encryptData(char* data) {
                 temp = (((text[i] - 64) + (key[i] - 64)) % 27);
             }
         }
-        // Store encrypted char in text buffer
+        // Stores encrypted char in text buffer
         text[i] = letters[temp];
     }
+    // Copies encrypted buffer to heap memory
     strcpy(encryptedText, text);
     strcat(encryptedText, "\n");
     return encryptedText;
 }
 
+/*
+*   sendData()
+*   First sends the size of the outgoing data, then sends
+*   encrypted text through socket connection.
+*
+*   arg:    data - pointer to encrypted text  
+*   arg:    socketFD  - socket file descriptor
+*/
+void sendData(char* data, int socketFD) {
+    int  charsWritten;
+    int  length = strlen(data);
+
+    // Temp buffer stores length of outgoing data
+    char dataSizeBuffer[15];
+    sprintf(dataSizeBuffer, "%d", length);
+    int bufferLen = strlen(dataSizeBuffer);
+    char *p = dataSizeBuffer;
+
+    // Sends data size to client to prevent socket from hanging
+    while (bufferLen > 0) {
+        charsWritten = send(socketFD, dataSizeBuffer, bufferLen, 0);
+        bufferLen -= charsWritten;
+        p += charsWritten;
+    }
+
+    // Sends encrypted data through socket to client
+    p = data;
+    sleep(1);
+    while (length > 0) {
+        charsWritten = send(socketFD, p, length, 0);
+        length -= charsWritten;
+        p += charsWritten;
+    }
+}
+
 int main(int argc, char *argv[]){
-    int connectionSocket;
-    char* data;
-    char* encryptedText;
+    int    connectionSocket;
     struct sockaddr_in serverAddress, clientAddress;
     socklen_t sizeOfClientInfo = sizeof(clientAddress);
 
@@ -212,7 +244,7 @@ int main(int argc, char *argv[]){
     listen(listenSocket, 5); 
     
     // Accept a connection, blocking if one is not available until one connects
-    while(1){
+    while (true){
         // Accept the connection request which creates a connection socket
         connectionSocket = accept(listenSocket, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); 
         if (connectionSocket < 0) {
@@ -229,9 +261,9 @@ int main(int argc, char *argv[]){
 
         // Client is verified, receive data, encrypt it, and send back
         if (handshake == true) {
-            data = receiveData(connectionSocket);
-            encryptedText = encryptData(data);
-            printf("text is: %s", encryptedText);
+            char* data = receiveData(connectionSocket);
+            char* encryptedText = encryptData(data);
+            sendData(encryptedText, connectionSocket);
             free(data);
             free(encryptedText);
         }

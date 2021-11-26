@@ -17,7 +17,7 @@ Note: you may need to set execute permissions on the script `chmod +x ./p5testsc
 
 
 start the individual server like this:
-./enc_server 49123
+./enc_server 45678
 
 client needs to start like this:
 enc_client plaintext1 key42 45678

@@ -149,18 +149,35 @@ bool performHandShake(int socketFD) {
 }
 
 /*
-*   sendData()
-*   Concatenates plaintext and key, sending all data through
-*   socket connections at one time.
+*   sendAndReceiveData()
+*   First sends the size of the outgoing data, then concatenates 
+*   plaintext and key, sending all data through socket connection.
+*   Reads socket data into a temp buffer, writing it to heap memory
+*   for later use.
 *
 *   arg:    data - pointer to plaintext char array  
 *   arg:    key  - pointer to key char array
 *   arg:    socketFD  - socket file descriptor
+*
+*   return: encryptedText - pointer to encrypted text data
 */
-void sendData(char* data, char* key, int socketFD) {
-    int chunk = 1024;
-    int charsWritten;
-    int length = strlen(data) + strlen(key);
+char* sendAndReceiveData(char* data, char* key, int socketFD) {
+    size_t chunk = 1024;
+    int    charsWritten, charsRead;
+    int    length = strlen(data) + strlen(key);
+
+    // Temp buffer stores length of outgoing data
+    char dataSizeBuffer[15];
+    sprintf(dataSizeBuffer, "%d", length);
+    int bufferLen = strlen(dataSizeBuffer);
+    char *p = dataSizeBuffer;
+    
+    // Sends data size to server to prevent socket from hanging
+    while (bufferLen > 0) {
+        charsWritten = send(socketFD, dataSizeBuffer, bufferLen, 0);
+        bufferLen -= charsWritten;
+        p += charsWritten;
+    }
 
     // Concatenates plaintext and key
     char* buffer = (char *)malloc(length);
@@ -170,56 +187,57 @@ void sendData(char* data, char* key, int socketFD) {
 
     // Sends concatenated data to the server
     while (length > 0) {
-        charsWritten = send(socketFD, pointer, chunk, 0);
+        charsWritten = send(socketFD, pointer, length, 0);
         length -= charsWritten;
         pointer += charsWritten;
     }
     free(buffer);
-}
 
-/*
-*   receiveData()
-*   Reads socket data into a temp buffer, writing it to heap memory
-*   for later use.
-*
-*   arg:    socketFD - socket file descriptor 
-*   return: pointer to heap memory containing socket data
-*/
-char* receiveData(int socketFD) {
-    char*  data;
-    size_t chunk = 1024;
-    int    charsRead;
-    char   buffer[chunk];
-
+    // Get size of incoming data from server
+    char recvBuffer[chunk];
+    memset(recvBuffer, '\0', chunk);
+    charsRead = recv(socketFD, recvBuffer, chunk, 0); 
+    if (charsRead < 0) error("enc_server: ERROR reading from socket in receiveData()\n");
+    
     // Allocates space on the heap for socket data
-    data = (char*)malloc(chunk * sizeof(char));
-    char* p = data;
+    length = atoi(recvBuffer);
+    char* encryptedText = (char*)malloc(length * sizeof(char));
+    p = encryptedText;
 
-    while (true) {
-        // Clear temporary buffer for socket chunk
-        memset(buffer, '\0', chunk);
-        charsRead = recv(socketFD, buffer, sizeof(buffer) -1, 0);
+    while (length > 0) {
+        // Clear temporary buffer for incoming socket chunk
+        memset(recvBuffer, '\0', chunk);
+        charsRead = recv(socketFD, recvBuffer, chunk -1, 0);
         
         // Error reading from socket
         if (charsRead < 0) { error("enc_client: ERROR reading from socket in receiveData()\n"); }
-
-        // Client has received all data
-        if (charsRead == 0) { break; }
         
-        // Copies buffer string to heap memory, adds more memory for next buffer
+        // Copies buffer string to heap memory
         else {
-            strncpy(p, buffer, strlen(buffer));
+            strncpy(p, recvBuffer, strlen(recvBuffer));
             p += charsRead;
-            data = realloc(data, chunk * sizeof(char));
+            length -= charsRead;
         }
     }
-    return data;
+    return encryptedText;
 }
 
+/*
+*   main()
+*   Runs main program loop for opening socket and connecting
+*   to server. Calls helper functions for reading and storing
+*   file data in order to sent to server. Receives encrypted 
+*   data from server and prints it to stdout.
+*
+*   arg:    argc - number of CL arguments  
+*   arg:    argv - string array of CL text arguments
+*
+*   return: EXIT_SUCCESS or EXIT_FAILURE
+*/
 int main(int argc, char *argv[]) {
-    int socketFD, option;
-    char* encryptedText;
+    int    socketFD, option;
     struct sockaddr_in serverAddress;
+    char*  encryptedText;
 
     // Check usage & args
     if (argc != 4) { 
@@ -243,10 +261,8 @@ int main(int argc, char *argv[]) {
         error("enc_client: ERROR opening socket\n");
     }
 
-    // Allow the port to be reused
+    // Allow the port to be reused and set up server address struct
     setsockopt(socketFD, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
-
-    // Set up the server address struct
     setupAddressStruct(&serverAddress, atoi(argv[3]));
 
     // Connect to server
@@ -259,8 +275,8 @@ int main(int argc, char *argv[]) {
 
     // Server is verified, send data and receive encrypted text from server
     if (handshake == true) {
-        sendData(text, key, socketFD);
-        encryptedText = receiveData(socketFD);
+        encryptedText = sendAndReceiveData(text, key, socketFD);
+        printf("%s", encryptedText);
     }
     else {
         error("enc_server: ERROR client failed handshake\n");
