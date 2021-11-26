@@ -5,7 +5,6 @@
 // the passed-in plaintext and key, returning ciphertext to enc_client.
 // Server runs in the background and supports up to 5 concurrent socket connections.
 
-
 #include <ctype.h>
 #include <netdb.h>      // gethostbyname()
 #include <stdbool.h>
@@ -57,7 +56,6 @@ bool performHandShake(int socketFD) {
     if (charsRead < 0){
         error("enc_server: ERROR reading from socket\n");
     }
-    // printf("Server: I received this from the client: \"%s\"\n", buffer);
 
     // Send message through socket to the server
     charsWritten = send(socketFD, server, strlen(server), 0);
@@ -105,9 +103,6 @@ char* receiveData(int socketFD) {
         
         // Error reading from socket
         if (charsRead < 0) { error("enc_server: ERROR reading from socket in receiveData()\n"); }
-
-        // // Server has received all data
-        // if (charsRead == 0) { break; }
         
         // Copies buffer string to heap memory
         else {
