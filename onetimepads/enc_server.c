@@ -151,17 +151,17 @@ char* encryptData(char* data) {
                 temp = 0 % 27;
             // Plaintext char is a space but key char is not a space
             } else {
-                temp = ((key[i] - 64) % 27);
+                temp = (key[i] - 64) % 27;
             }
         
         } else {
             // Plaintext char is not a space but key char is a space
             if (key[i] == ' ') {
-                temp = ((text[i] - 64) % 27);
+                temp = (text[i] - 64) % 27;
 
             // Plaintext and key chars are not spaces
             } else {
-                temp = (((text[i] - 64) + (key[i] - 64)) % 27);
+                temp = ((text[i] - 64) + (key[i] - 64)) % 27;
             }
         }
         // Stores encrypted char in text buffer

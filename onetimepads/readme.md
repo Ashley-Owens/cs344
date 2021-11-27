@@ -13,18 +13,4 @@ Note: you may need to set execute permissions on the script `chmod +x ./compilea
 Note: you may need to set execute permissions on the script `chmod +x ./p5testscript`       
 
 5. You can also run the program by redirecting testing output such as:
-    `./p5testscript <port number> <port number> > mytestresults 2>&1`         
-
-
-start the individual server like this:
-./enc_server 45678
-
-client needs to start like this:
-enc_client plaintext1 key42 45678
-where plaintext is a filename
-where key is a filename
-
-
-gcc --std=gnu99 -g -Wall -o enc_server enc_server.c
-gcc --std=gnu99 -g -Wall -o enc_client enc_client.c
-gcc --std=gnu99 -g -Wall -o dec_client dec_client.c
+    `./p5testscript 59876 56897 > mytestresults 2>&1`         

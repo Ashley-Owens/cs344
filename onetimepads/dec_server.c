@@ -5,13 +5,6 @@
 // and key, returning plaintext to dec_client.
 
 
-// Name: Ashley Owens
-// Date: 11/29/2021
-// Project 5: One-time Pads
-// Decrypt Server: connects only to the decrypt client, encrypting
-// the passed-in plaintext and key, returning ciphertext to dec_client.
-// Server runs in the background and supports up to 5 concurrent socket connections.
-
 #include <ctype.h>
 #include <netdb.h>      // gethostbyname()
 #include <stdbool.h>
@@ -137,12 +130,12 @@ char* decryptData(char* data) {
     
     // Copies key string to null terminated buffer
     char  key[keyLen + 1];
-    memset(key, '\0', keyLen + 1);
+    memset(key, '\0', sizeof(key));
     strncpy(key, j + 1, keyLen);
     
     // Copies plain text string to null terminated buffer
     char text[textLen + 1];
-    memset(text, '\0', textLen + 1);
+    memset(text, '\0', sizeof(text));
     strncpy(text, data, textLen);
     
     // Allocates heap memory to store decrypted text
@@ -151,28 +144,38 @@ char* decryptData(char* data) {
     char letters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
     // Iterates through encrypted text, decrypting one char at a time
-    for (int i=0; i < textLen; i++) {
+    for (int i=0; i < strlen(text); i++) {
+        
         if (text[i] == ' ') {
             // Cipher char and key char are both spaces
             if (key[i] == ' ') {
-                temp = 0 % 27;
+                temp = 0;
             // Cipher char is a space but key char is not a space
             } else {
-                temp = ((key[i] - 64) % 27);
+                temp = 0 - (key[i] - 64);
+                if (temp < 0) {
+                    temp += 27;
+                }
             }
         
         } else {
             // Cipher char is not a space but key char is a space
             if (key[i] == ' ') {
-                temp = ((text[i] - 64) % 27);
+                temp = text[i] - 64;
+                if (temp < 0) {
+                    temp += 27;
+                }
 
             // Cipher and key chars are not spaces
             } else {
-                temp = (((text[i] - 64) + (key[i] - 64)) % 27);
+                temp = (text[i] - 64) - (key[i] - 64);
+                if (temp < 0) {
+                    temp += 27;
+                }
             }
         }
         // Stores decrypted char in text buffer
-        text[i] = letters[temp];
+        text[i] = letters[abs(temp)];
     }
     // Copies decrypted buffer to heap memory
     strcpy(decryptedText, text);

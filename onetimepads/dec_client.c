@@ -179,10 +179,11 @@ char* sendAndReceiveData(char* data, char* key, int socketFD) {
     }
 
     // Concatenates encrypted text and key
-    char* buffer = (char *)malloc(length);
+    char* buffer = (char *)malloc((length + 1) * sizeof(char));
     strcpy(buffer, data);
     strcat(buffer, key);
     char* pointer = buffer;
+    sleep(1);
 
     // Sends concatenated data to the server
     while (length > 0) {

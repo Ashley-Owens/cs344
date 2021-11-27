@@ -86,7 +86,7 @@ char* getFileText(char* fileName) {
 bool isValid(char* text, char* key) {
     // Checks for error: key file is shorter than the plaintext
     if (strlen(key) < strlen(text)) {
-        fprintf(stderr,"enc_client: ERROR key is too short\n");
+        fprintf(stderr, "enc_client: ERROR key is too short\n");
         return false;
     }
 
@@ -183,7 +183,7 @@ char* sendAndReceiveData(char* data, char* key, int socketFD) {
     strcpy(buffer, data);
     strcat(buffer, key);
     char* pointer = buffer;
-
+    sleep(1);
     // Sends concatenated data to the server
     while (length > 0) {
         charsWritten = send(socketFD, pointer, length, 0);
