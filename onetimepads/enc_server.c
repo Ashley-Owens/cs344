@@ -245,30 +245,28 @@ int main(int argc, char *argv[]){
         if (connectionSocket < 0) {
             error("enc_server: ERROR on accept\n");
         }
-
-        printf("enc_server: Connected to client running at host %d port %d\n", 
-                ntohs(clientAddress.sin_addr.s_addr),
-                ntohs(clientAddress.sin_port)
-        );
         
         // Perform initial handshake to verify client/server identities
         bool handshake = performHandShake(connectionSocket);
 
         // Client is verified, receive data, encrypt it, and send back
         if (handshake == true) {
+            printf("enc_server: Connected to client running at host %d port %d\n", 
+                ntohs(clientAddress.sin_addr.s_addr),
+                ntohs(clientAddress.sin_port)
+            );
             char* data = receiveData(connectionSocket);
             char* encryptedText = encryptData(data);
             sendData(encryptedText, connectionSocket);
             free(data);
             free(encryptedText);
+            // Close the connection socket for this client
+            close(connectionSocket); 
         }
         // Client cannot be verified, display error and close socket
         else {
-            error("enc_server: dec_client cannot use enc_server\n");
+            fprintf(stderr, "enc_server: ERROR client cannot use this server\n");
         }
-        
-        // Close the connection socket for this client
-        close(connectionSocket); 
     }
     // Close the listening socket
     close(listenSocket); 

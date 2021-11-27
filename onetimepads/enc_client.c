@@ -139,7 +139,6 @@ bool performHandShake(int socketFD) {
     if (charsRead < 0){
         error("enc_client: ERROR reading from socket");
     }
-    // printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
 
     // Confirms that communication with this server is valid
 	if (strcmp(buffer, server) == 0) {
@@ -197,7 +196,7 @@ char* sendAndReceiveData(char* data, char* key, int socketFD) {
     char recvBuffer[chunk];
     memset(recvBuffer, '\0', chunk);
     charsRead = recv(socketFD, recvBuffer, chunk, 0); 
-    if (charsRead < 0) error("enc_server: ERROR reading from socket in receiveData()\n");
+    if (charsRead < 0) error("enc_client: ERROR reading from socket in receiveData()\n");
     
     // Allocates space on the heap for socket data
     length = atoi(recvBuffer);
@@ -279,8 +278,8 @@ int main(int argc, char *argv[]) {
         printf("%s", encryptedText);
     }
     else {
-        error("enc_server: ERROR client failed handshake\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "enc_client: ERROR client failed handshake\n");
+        exit(2);
     }
 
     // Close the socket
@@ -289,5 +288,6 @@ int main(int argc, char *argv[]) {
     // Free heap memory
     free(text);
     free(key);
+    free(encryptedText);
     return EXIT_SUCCESS;
 }
