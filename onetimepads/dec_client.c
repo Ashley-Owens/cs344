@@ -1,8 +1,8 @@
 // Name: Ashley Owens
 // Date: 11/29/2021
 // Project 5: One-time Pads
-// Encrypt Client: connects only to the encrypt server, requesting
-// the server to encrypt ciphertext using passed-in text and key.
+// Decrypt Client: connects only to the decrypt server, requesting
+// the server to decrypt ciphertext using passed-in text and key.
 
 
 #include <ctype.h>
@@ -63,7 +63,7 @@ char* getFileText(char* fileName) {
         fprintf(stderr, "dec_client: ERROR cannot open the file %s\n", fileName);
     }
 
-    // Allocates space on the heap for plain text data
+    // Allocates space on the heap for cipher text data
     text = (char*)malloc(size * sizeof(char));
     if (text == NULL) {
         fprintf(stderr, "dec_client: ERROR heap space full\n");
@@ -158,7 +158,7 @@ bool performHandShake(int socketFD) {
 *   arg:    key  - pointer to key char array
 *   arg:    socketFD  - socket file descriptor
 *
-*   return: decryptedText - pointer to encrypted text data
+*   return: decryptedText - pointer to decrypted text data
 */
 char* sendAndReceiveData(char* data, char* key, int socketFD) {
     size_t chunk = 1024;
@@ -226,8 +226,8 @@ char* sendAndReceiveData(char* data, char* key, int socketFD) {
 *   main()
 *   Runs main program loop for opening socket and connecting
 *   to server. Calls helper functions for reading and storing
-*   file data in order to sent to server. Receives decrypted 
-*   data from server and prints it to stdout.
+*   encrypted file data in order to sent to server. Receives 
+*   decrypted data from server and prints it to stdout.
 *
 *   arg:    argc - number of CL arguments  
 *   arg:    argv - string array of CL text arguments

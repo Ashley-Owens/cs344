@@ -6,13 +6,14 @@
 // Server runs in the background and supports up to 5 concurrent socket connections.
 
 #include <ctype.h>
-#include <netdb.h>      // gethostbyname()
+#include <netdb.h>       
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>  // ssize_t
-#include <sys/socket.h> // send(),recv()
+#include <sys/types.h>  //  ssize_t
+#include <sys/socket.h> //  send(),recv()
+#include <sys/wait.h>   //  waitpid
 #include <unistd.h>
 
 
@@ -54,13 +55,13 @@ bool performHandShake(int socketFD) {
     // Read data from the socket, leaving \0 at end
     charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
     if (charsRead < 0){
-        error("enc_server: ERROR reading from socket\n");
+        error("enc_server: ERROR reading from socket");
     }
 
     // Send message through socket to the server
     charsWritten = send(socketFD, server, strlen(server), 0);
     if (charsWritten < 0) {
-        error("enc_server: ERROR writing to socket\n");
+        error("enc_server: ERROR writing to socket");
     }
     if (charsWritten < strlen(buffer)) {
         printf("enc_server: WARNING not all data written to socket!\n");
@@ -89,7 +90,7 @@ char* receiveData(int socketFD) {
     // Get size of incoming data from client
     memset(buffer, '\0', chunk);
 	charsRead = recv(socketFD, buffer, chunk, 0); 
-	if (charsRead < 0) error("enc_server: ERROR reading from socket in receiveData()\n");
+	if (charsRead < 0) error("enc_server: ERROR reading from socket in receiveData()");
 
     // Allocate space on the heap for incoming socket data
     length = atoi(buffer);
@@ -102,7 +103,7 @@ char* receiveData(int socketFD) {
         charsRead = recv(socketFD, buffer, sizeof(buffer) -1, 0);
         
         // Error reading from socket
-        if (charsRead < 0) { error("enc_server: ERROR reading from socket in receiveData()\n"); }
+        if (charsRead < 0) { error("enc_server: ERROR reading from socket in receiveData()"); }
         
         // Copies buffer string to heap memory
         else {
@@ -144,11 +145,11 @@ char* encryptData(char* data) {
     char letters[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
     // Iterates through plain text, encrypting one char at a time
-    for (int i=0; i < textLen; i++) {
+    for (int i=0; i < strlen(text); i++) {
         if (text[i] == ' ') {
             // Plaintext char and key char are both spaces
             if (key[i] == ' ') {
-                temp = 0 % 27;
+                temp = 0;
             // Plaintext char is a space but key char is not a space
             } else {
                 temp = (key[i] - 64) % 27;
@@ -208,10 +209,22 @@ void sendData(char* data, int socketFD) {
     }
 }
 
+/*
+*   main()
+*   Runs main program loop for opening socket, binding to given
+*   port, and creating forks to connect to up to 5 clients. Calls 
+*   helper functions for performing handshake, receiving, and 
+*   sending data through socket. Receives plaintext data, 
+*   encrypts it, and sends back to each client.
+*
+*   arg:    argc - number of CL arguments  
+*   arg:    argv - string array of CL text arguments
+*
+*   return: EXIT_SUCCESS or EXIT_FAILURE
+*/
 int main(int argc, char *argv[]){
-    int    connectionSocket;
     struct sockaddr_in serverAddress, clientAddress;
-    socklen_t sizeOfClientInfo = sizeof(clientAddress);
+    socklen_t sizeOfClientInfo;
 
     // Check usage & args
     if (argc != 2) { 
@@ -221,9 +234,7 @@ int main(int argc, char *argv[]){
     
     // Create the socket that will listen for connections
     int listenSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (listenSocket < 0) {
-        error("enc_server: ERROR opening server socket\n");
-    }
+    if (listenSocket < 0) { error("enc_server: ERROR opening server socket"); }
 
     // Set up the address struct for the server socket
     setupAddressStruct(&serverAddress, atoi(argv[1]));
@@ -231,43 +242,74 @@ int main(int argc, char *argv[]){
     int bindSocket = bind(listenSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
 
     // Check for errors
-    if (bindSocket < 0) {
-        error("enc_server: ERROR on binding socket\n");
-    }
+    if (bindSocket < 0) { error("enc_server: ERROR on binding socket"); }
 
     // Start listening for connections. Allow up to 5 connections to queue up
     listen(listenSocket, 5); 
     
-    // Accept a connection, blocking if one is not available until one connects
-    while (true){
-        // Accept the connection request which creates a connection socket
-        connectionSocket = accept(listenSocket, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); 
-        if (connectionSocket < 0) {
-            error("enc_server: ERROR on accept\n");
-        }
-        
-        // Perform initial handshake to verify client/server identities
-        bool handshake = performHandShake(connectionSocket);
+    // Initialize variables for tracking processes
+    pid_t parentPid = getpid();
+    pid_t spawnPid;
+    int   connectionSocket, waitStatus;
+    int   childPidArr[5];
+	int   numOfSockets = 0;
+    int   numOfProcesses = 0;
+	
+	while (parentPid == getpid()) {
+        // Checks current processes for completion
+		if (numOfProcesses > 0) {
+			for (int i = 0; i < numOfProcesses; i++) {
+                // Non-blocking check to see if process has completed
+				if (waitpid(childPidArr[i], &waitStatus, WNOHANG) != 0) {
+                    // Replace completed process with next child process
+					numOfProcesses--;
+					numOfSockets--;
+                    childPidArr[i] = childPidArr[numOfProcesses];
+				}
+			}
+		}
+        // There are open sockets available for more child processes
+		if (numOfSockets < 5) {
+			// Gets client address size and accepts connection
+			sizeOfClientInfo = sizeof(clientAddress); 
+			connectionSocket = accept(listenSocket, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); 
+			if (connectionSocket < 0) { error("enc_server: ERROR on accept\n"); }
 
-        // Client is verified, receive data, encrypt it, and send back
-        if (handshake == true) {
-            printf("enc_server: Connected to client running at host %d port %d\n", 
-                ntohs(clientAddress.sin_addr.s_addr),
-                ntohs(clientAddress.sin_port)
-            );
-            char* data = receiveData(connectionSocket);
-            char* encryptedText = encryptData(data);
-            sendData(encryptedText, connectionSocket);
-            free(data);
-            free(encryptedText);
-            // Close the connection socket for this client
-            close(connectionSocket); 
-        }
-        // Client cannot be verified, display error and close socket
-        else {
-            fprintf(stderr, "enc_server: ERROR client cannot use this server\n");
-        }
-    }
+            // Creates a child process
+			spawnPid = fork();
+			switch (spawnPid) {
+                // Child process tasks
+                case 0:
+                    // Valid handshake: receive, encrypt, and return data
+                    if (performHandShake(connectionSocket) == true) {
+                        char* data = receiveData(connectionSocket);
+                        char* encryptedText = encryptData(data);
+                        sendData(encryptedText, connectionSocket);
+                        free(data);
+                        free(encryptedText);
+                    }
+                    // Invalid client
+                    else {
+                        fprintf(stderr, "enc_server: ERROR decrypt client cannot use this server\n");
+                    }
+                    close(connectionSocket); 
+                    return 0;
+                    break;
+                
+                // Error handling for fork failure
+                case -1:
+                    error("enc_server: ERROR unable to fork");
+                    break;
+                
+                // Parent PID: increment counters and add fork to pid array
+                default:
+                    childPidArr[numOfProcesses] = spawnPid;
+                    numOfSockets++;
+                    numOfProcesses++;
+                    break;
+			}
+		}
+	}		
     // Close the listening socket
     close(listenSocket); 
     return EXIT_SUCCESS;

@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
         printf("%s", encryptedText);
     }
     else {
-        fprintf(stderr, "enc_client: ERROR client failed handshake\n");
+        fprintf(stderr, "enc_client: ERROR handshake failed\n");
         exit(2);
     }
 
