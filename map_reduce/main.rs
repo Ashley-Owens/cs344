@@ -1,3 +1,9 @@
+/*
+*  Project 6: Multi-threaded Map Reduce in Rust 
+*  Ashley Owens
+*  12/3/2021
+*/
+
 use std::env; // to get arugments passed to the program
 use std::thread;
 use std::thread::JoinHandle;
@@ -207,6 +213,20 @@ fn main() {
 * 
 */
 fn partition_data(num_partitions: usize, v: &Vec<usize>) -> Vec<Vec<usize>>{
-    // Remove the following line which has been added to remove a compiler error
-    partition_data_in_two(v)
+    // Store the integer results in a vector of vectors
+    let mut results : Vec<Vec<usize>> = Vec::new();
+
+    // Push the appropriate number of empty partitions to the results 
+    for _i in 0..num_partitions {
+        let partition : Vec<usize> = Vec::new();
+        results.push(partition);
+    }
+
+    // Partition the numbers in a circular pattern
+    let mut partition_j = 0;
+    for j in 0..v.len() {
+        results[partition_j].push(v[j]);
+        partition_j = (partition_j + 1) % num_partitions;
+    }
+    results
 }

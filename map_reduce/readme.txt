@@ -9,4 +9,4 @@ Instructions for Running Program 6
 
 4. Run the program by entering the following command:       
     ./main <num_partitions> <num_elements>
-    ./maim 5 150
+    ./main 5 150
