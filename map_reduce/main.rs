@@ -176,6 +176,20 @@ fn main() {
         handles.push(t);
     }
 
+    // Collects the intermediate sums from all the threads
+    for handle in handles {
+        let temp = handle.join().unwrap();
+        intermediate_sums.push(temp);
+    }
+
+    // Prints information about the intermediate sums
+    println!("Intermediate sums = {:?}", intermediate_sums);
+
+    // Calls reduce_data to process the intermediate sums
+    let sum = reduce_data(&intermediate_sums);
+
+    // Prints the final sum computed by reduce_data
+    println!("Sum = {}", sum);
 }
 
 /*
