@@ -1,5 +1,6 @@
 use std::env; // to get arugments passed to the program
 use std::thread;
+use std::thread::JoinHandle;
 
 /*
 * Print the number of partitions and the size of each partition
@@ -153,8 +154,27 @@ fn main() {
     // 3. Creates one thread per partition and uses each thread to concurrently process one partition
     // 4. Collects the intermediate sums from all the threads
     // 5. Prints information about the intermediate sums
-    // 5. Calls reduce_data to process the intermediate sums
-    // 6. Prints the final sum computed by reduce_data
+    // 6. Calls reduce_data to process the intermediate sums
+    // 7. Prints the final sum computed by reduce_data
+
+    // Calls partition_data to partition the data into equal partitions
+    let partitions = partition_data(num_partitions, &v);
+
+    // Prints info on the partitions that have been created
+    print_partition_info(&partitions);
+
+    // Clears intermediate_sums before pushing new data
+    intermediate_sums.clear();
+
+    // Tracks thread handles
+    let mut handles : Vec<JoinHandle<usize>> = Vec::new();
+
+    // Creates one thread per partition, using each thread to concurrently process one partition
+    for partition in partitions {
+        let p_clone = partition.clone();
+        let t = thread::spawn(move || map_data(&p_clone));
+        handles.push(t);
+    }
 
 }
 
